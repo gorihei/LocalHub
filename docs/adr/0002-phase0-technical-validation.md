@@ -16,6 +16,7 @@ ADR-0001でTauri 2.x + Rust + React/TypeScriptを採用することを決定し�
 
 **遭遇した環境課題(このマシン固有)**:
 - Visual Studio 2022 EnterpriseのMSVCツールセットに`msvcrt.lib`等が欠落しておりリンクエラー(LNK1104)が発生。VS2019 CommunityのMSVCツールセットは完全だったため、`app/.cargo/config.toml`でリンカー・LIB/INCLUDEパスを明示的に固定して解決した。
+- 2026-08-22追記: VS2022の「C++によるデスクトップ開発」を再導入し、MSVC v143の欠落ファイルを復元した。VS2022環境だけで`cargo check`が成功することを確認したため、上記の`app/.cargo/config.toml`によるVS2019固定は廃止した。
 - Bashツール経由でTauriアプリ(GUIプロセス)を起動すると、ビルドは成功してもウィンドウプロセスが直後に終了する現象を確認。PowerShell経由での起動では問題なく常駐した。原因は未特定(Git-Bash/MSYS2のプロセス生成まわりの可能性)だが、開発時はPowerShellから起動する運用で回避できる。
 
 ### 2. ConPTY(portable-pty) — FR-CLI-001, FR-CLI-002
