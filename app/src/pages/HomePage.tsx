@@ -30,7 +30,8 @@ import PluginPageFrame from "./PluginPageFrame";
 import { isLauncherEditing, onLauncherEditingChanged, toggleLauncherEditing } from "../shortcuts/launcherEditing";
 import { executeCommand } from "../commandBus/commandBus";
 
-const SETTINGS_KEY = "dashboardLayout";
+const LEGACY_SETTINGS_KEY = "dashboardLayout";
+const TABS_SETTINGS_KEY = "dashboardTabs";
 // 列数を増やし行高を下げることで、リサイズ時の刻み幅を細かくしている
 // (COLS=12/rowHeight=60だと1段階の変化が大きすぎるという要望への対応)。
 const COLS = 24;
@@ -50,6 +51,7 @@ const WIDGET_CATALOG = [
 ] as const;
 
 type WidgetId = string;
+type DashboardTab = { id: string; name: string; layout: Layout };
 
 // §6.1付録B: プラグインが宣言する汎用ウィジェット(contributes.widgets)。
 // コアが「commandを定期的に呼んで結果を表示する」という共通レンダラーで
@@ -109,7 +111,9 @@ const DEFAULT_LAYOUT: Layout = [
   { i: "plugins", x: 18, y: 8, w: 6, h: 10, minW: 4, minH: 6 },
 ];
 
-function sanitize(raw: unknown): Layout | null {
+const DEFAULT_TABS: DashboardTab[] = [{ id: "main", name: "メイン", layout: DEFAULT_LAYOUT }];
+
+function sanitizeLayout(raw: unknown): Layout | null {
   if (!Array.isArray(raw)) return null;
   const validIds = new Set<string>(WIDGET_CATALOG.map((w) => w.id));
   // 破損/不明なウィジェットは除外して安全に読み込む(FR-DASH-005)。
@@ -119,7 +123,22 @@ function sanitize(raw: unknown): Layout | null {
   const filtered = (raw as LayoutItem[]).filter(
     (item) => item && typeof item.i === "string" && (validIds.has(item.i) || item.i.startsWith("plugin.") || item.i.startsWith("page."))
   );
-  return filtered.length > 0 ? filtered : null;
+  return filtered;
+}
+
+function sanitizeTabs(raw: unknown): DashboardTab[] | null {
+  if (!Array.isArray(raw)) return null;
+  const ids = new Set<string>();
+  const tabs = raw.flatMap((value): DashboardTab[] => {
+    if (!value || typeof value !== "object") return [];
+    const candidate = value as Partial<DashboardTab>;
+    if (typeof candidate.id !== "string" || !candidate.id || ids.has(candidate.id)) return [];
+    const layout = sanitizeLayout(candidate.layout);
+    if (!layout) return [];
+    ids.add(candidate.id);
+    return [{ id: candidate.id, name: typeof candidate.name === "string" && candidate.name.trim() ? candidate.name.trim() : "名称未設定", layout }];
+  });
+  return tabs.length > 0 ? tabs : null;
 }
 
 function WidgetBody({ id, pluginWidgets, pluginPages }: { id: WidgetId; pluginWidgets: PluginWidgetInfo[]; pluginPages: PluginPageInfo[] }) {
@@ -216,7 +235,8 @@ function PluginStatusWidget() {
 }
 
 export default function HomePage() {
-  const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
+  const [tabs, setTabs] = useState<DashboardTab[]>(DEFAULT_TABS);
+  const [activeTabId, setActiveTabId] = useState("main");
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [focusedId, setFocusedId] = useState<WidgetId | null>(null);
@@ -239,28 +259,35 @@ export default function HomePage() {
     ...pluginWidgets.map((w) => ({ id: pluginWidgetLayoutId(w), title: `${w.title}(プラグイン)` })),
     ...pluginPages.map((p) => ({ id: pluginPageLayoutId(p), title: `${p.title}(プラグインページ)` })),
   ];
+  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
+  const layout = activeTab?.layout ?? [];
 
-  const lastGoodLayout = useRef<Layout>(DEFAULT_LAYOUT);
-  const undoLayout = useRef<Layout | null>(null);
+  const lastGoodTabs = useRef<DashboardTab[]>(DEFAULT_TABS);
+  const undoLayout = useRef<{ tabId: string; layout: Layout } | null>(null);
   const [hasUndo, setHasUndo] = useState(false);
   const beforeChangeRef = useRef<Layout | null>(null);
 
   useEffect(() => {
     invoke<Record<string, string>>("settings_get_all")
       .then((stored) => {
-        const parsed = stored[SETTINGS_KEY] ? sanitize(JSON.parse(stored[SETTINGS_KEY])) : null;
-        const next = parsed ?? DEFAULT_LAYOUT;
-        setLayout(next);
-        lastGoodLayout.current = next;
+        const parsedTabs = stored[TABS_SETTINGS_KEY] ? sanitizeTabs(JSON.parse(stored[TABS_SETTINGS_KEY])) : null;
+        const legacyLayout = stored[LEGACY_SETTINGS_KEY] ? sanitizeLayout(JSON.parse(stored[LEGACY_SETTINGS_KEY])) : null;
+        const next = parsedTabs ?? [{ ...DEFAULT_TABS[0], layout: legacyLayout?.length ? legacyLayout : DEFAULT_LAYOUT }];
+        setTabs(next);
+        setActiveTabId(next[0].id);
+        lastGoodTabs.current = next;
+        if (!parsedTabs) {
+          invoke("settings_set", { key: TABS_SETTINGS_KEY, value: JSON.stringify(next) }).catch(() => {});
+        }
       })
       .catch((err) => console.error("ダッシュボードレイアウトの読み込みに失敗しました:", err))
       .finally(() => setLoaded(true));
   }, []);
 
-  const persist = useCallback(async (next: Layout) => {
+  const persistTabs = useCallback(async (next: DashboardTab[]) => {
     try {
-      await invoke("settings_set", { key: SETTINGS_KEY, value: JSON.stringify(next) });
-      lastGoodLayout.current = next;
+      await invoke("settings_set", { key: TABS_SETTINGS_KEY, value: JSON.stringify(next) });
+      lastGoodTabs.current = next;
     } catch (err) {
       // FR-DASH-004: 保存失敗時は通知し、直前の正常なレイアウトを保持する。
       invoke("notifications_push", {
@@ -268,20 +295,22 @@ export default function HomePage() {
         title: "ダッシュボードの保存に失敗しました",
         body: String(err),
       }).catch(() => {});
-      setLayout(lastGoodLayout.current);
+      setTabs(lastGoodTabs.current);
     }
   }, []);
 
   const commitLayout = useCallback(
     (next: Layout, forUndo: Layout | null) => {
+      if (!activeTab) return;
       if (forUndo) {
-        undoLayout.current = forUndo;
+        undoLayout.current = { tabId: activeTab.id, layout: forUndo };
         setHasUndo(true);
       }
-      setLayout(next);
-      persist(next);
+      const nextTabs = tabs.map((tab) => (tab.id === activeTab.id ? { ...tab, layout: next } : tab));
+      setTabs(nextTabs);
+      persistTabs(nextTabs);
     },
-    [persist]
+    [activeTab, persistTabs, tabs]
   );
 
   const undo = () => {
@@ -289,10 +318,50 @@ export default function HomePage() {
     const restored = undoLayout.current;
     undoLayout.current = null;
     setHasUndo(false);
-    commitLayout(restored, null);
+    const nextTabs = tabs.map((tab) => (tab.id === restored.tabId ? { ...tab, layout: restored.layout } : tab));
+    setTabs(nextTabs);
+    setActiveTabId(restored.tabId);
+    persistTabs(nextTabs);
   };
 
-  const resetLayout = () => commitLayout(DEFAULT_LAYOUT, layout);
+  const resetLayout = () => {
+    setTabs(DEFAULT_TABS);
+    setActiveTabId("main");
+    undoLayout.current = null;
+    setHasUndo(false);
+    persistTabs(DEFAULT_TABS);
+  };
+
+  const addTab = () => {
+    const id = `tab-${Date.now().toString(36)}`;
+    const next = [...tabs, { id, name: `タブ ${tabs.length + 1}`, layout: [] }];
+    setTabs(next);
+    setActiveTabId(id);
+    persistTabs(next);
+  };
+
+  const renameActiveTab = (name: string) => {
+    if (!activeTab) return;
+    setTabs((current) => current.map((tab) => (tab.id === activeTab.id ? { ...tab, name } : tab)));
+  };
+
+  const saveActiveTabName = () => {
+    if (!activeTab) return;
+    const normalized = activeTab.name.trim() || "名称未設定";
+    const next = tabs.map((tab) => (tab.id === activeTab.id ? { ...tab, name: normalized } : tab));
+    setTabs(next);
+    persistTabs(next);
+  };
+
+  const deleteActiveTab = () => {
+    if (!activeTab || tabs.length <= 1) return;
+    if (!window.confirm(`「${activeTab.name}」を削除しますか？\n配置中のウィジェットもホームから外れます。`)) return;
+    const index = tabs.findIndex((tab) => tab.id === activeTab.id);
+    const next = tabs.filter((tab) => tab.id !== activeTab.id);
+    setTabs(next);
+    setActiveTabId(next[Math.min(index, next.length - 1)].id);
+    persistTabs(next);
+  };
 
   const addWidget = (id: WidgetId) => {
     // y: Infinityでreact-grid-layoutに自動配置させたかったが、その解決結果を
@@ -310,6 +379,22 @@ export default function HomePage() {
       layout.filter((l) => l.i !== id),
       layout
     );
+  };
+
+  const moveWidget = (id: WidgetId, targetTabId: string) => {
+    if (!activeTab || targetTabId === activeTab.id) return;
+    const item = layout.find((entry) => entry.i === id);
+    if (!item) return;
+    const nextTabs = tabs.map((tab) => {
+      if (tab.id === activeTab.id) return { ...tab, layout: tab.layout.filter((entry) => entry.i !== id) };
+      if (tab.id === targetTabId) {
+        const nextY = tab.layout.reduce((max, entry) => Math.max(max, entry.y + entry.h), 0);
+        return { ...tab, layout: [...tab.layout, { ...item, x: 0, y: nextY }] };
+      }
+      return tab;
+    });
+    setTabs(nextTabs);
+    persistTabs(nextTabs);
   };
 
   // キーボード操作(FR-DASH-007): 編集モード中、選択中のウィジェットを
@@ -339,7 +424,7 @@ export default function HomePage() {
     beforeChangeRef.current = null;
   };
 
-  const placedIds = new Set(layout.map((l) => l.i));
+  const placedIds = new Set(tabs.flatMap((tab) => tab.layout.map((item) => item.i)));
   const availableToAdd = fullCatalog.filter((w) => !placedIds.has(w.id));
 
   return (
@@ -357,7 +442,7 @@ export default function HomePage() {
           )}
           {editing && (
             <button className="btn" onClick={resetLayout}>
-              初期レイアウトへ戻す
+              タブと配置を初期化
             </button>
           )}
           {editing && availableToAdd.length > 0 && (
@@ -382,6 +467,49 @@ export default function HomePage() {
         </div>
       </div>
 
+      <div className="dashboard-tabs-row">
+        <div className="dashboard-tabs" role="tablist" aria-label="ダッシュボードグループ">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={tab.id === activeTabId}
+              className={`dashboard-tab${tab.id === activeTabId ? " active" : ""}`}
+              onClick={() => {
+                setActiveTabId(tab.id);
+                setFocusedId(null);
+              }}
+            >
+              <span>{tab.name}</span>
+              <small>{tab.layout.length}</small>
+            </button>
+          ))}
+          {editing && (
+            <button className="dashboard-tab-add" type="button" onClick={addTab} title="タブを追加">
+              ＋
+            </button>
+          )}
+        </div>
+        {editing && activeTab && (
+          <div className="dashboard-tab-editing">
+            <input
+              className="dashboard-tab-name"
+              value={activeTab.name}
+              aria-label="現在のタブ名"
+              onChange={(event) => renameActiveTab(event.target.value)}
+              onBlur={saveActiveTabName}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+            />
+            <button className="btn" type="button" onClick={deleteActiveTab} disabled={tabs.length <= 1}>
+              タブを削除
+            </button>
+          </div>
+        )}
+      </div>
+
       {loaded && (
         <div
           ref={(el) => {
@@ -396,12 +524,13 @@ export default function HomePage() {
         >
           {containerWidth > 0 && (
             <GridLayout
+              key={activeTabId}
               width={containerWidth}
               layout={layout}
               // containerPadding:nullはmarginと同じ値にフォールバックする実装のため、
               // .pageのパディングと二重に効いてしまう。明示的に0にして防ぐ。
               gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT, margin: [10, 10], containerPadding: [0, 0], maxRows: Infinity }}
-              // cancel: widget-head内の削除/編集ボタン等がドラッグ開始として
+              // cancel: widget-head内の削除/編集ボタンやタブ移動selectがドラッグ開始として
               // 吸収され、クリックが届かなくなっていたため除外する。
               // handle: widget-head(タイトルバー)以外からはドラッグを開始できないように
               // 制限する。以前はウィジェット本体(プラグインページの<iframe>を含む)全体が
@@ -410,7 +539,7 @@ export default function HomePage() {
               // イベントを奪われてしまい、そのままドラッグを見失って固まることがあった。
               // ドラッグ起点をiframeの外(タイトルバー)に限定することで、この競合状態
               // 自体をなくす。
-              dragConfig={{ enabled: editing, bounded: false, threshold: 3, cancel: "button", handle: ".widget-head" }}
+              dragConfig={{ enabled: editing, bounded: false, threshold: 3, cancel: "button, select, input", handle: ".widget-head" }}
               resizeConfig={{ enabled: editing, handles: ["se"] }}
               onDragStart={() => {
                 beforeChangeRef.current = layout;
@@ -464,12 +593,29 @@ export default function HomePage() {
                         </button>
                       )}
                       {editing && (
-                        <button className="icon-btn" onClick={() => removeWidget(widget.id)} title="削除">
-                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            <line x1="6" y1="6" x2="14" y2="14" />
-                            <line x1="14" y1="6" x2="6" y2="14" />
-                          </svg>
-                        </button>
+                        <>
+                          {tabs.length > 1 && (
+                            <select
+                              className="widget-tab-select"
+                              value=""
+                              aria-label={`${widget.title}を別のタブへ移動`}
+                              onChange={(event) => {
+                                if (event.target.value) moveWidget(widget.id, event.target.value);
+                              }}
+                            >
+                              <option value="">移動…</option>
+                              {tabs.filter((tab) => tab.id !== activeTabId).map((tab) => (
+                                <option key={tab.id} value={tab.id}>{tab.name}</option>
+                              ))}
+                            </select>
+                          )}
+                          <button className="icon-btn" onClick={() => removeWidget(widget.id)} title="削除">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <line x1="6" y1="6" x2="14" y2="14" />
+                              <line x1="14" y1="6" x2="6" y2="14" />
+                            </svg>
+                          </button>
+                        </>
                       )}
                     </div>
                     {/* クイックCLIとプラグインページ系ウィジェットは余白なしで縁いっぱいに

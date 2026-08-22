@@ -515,6 +515,30 @@ pub fn plugin_data_delete_all(conn: &mut Connection, plugin_id: &str) -> Result<
         }
     }
 
+    // タブ対応後のレイアウトは、各タブのlayout配列にウィジェットを保持する。
+    // プラグイン削除時は全タブを走査し、無効な埋め込みを残さない。
+    let tabs: Option<String> = tx
+        .query_row("SELECT value FROM app_settings WHERE key = 'dashboardTabs'", [], |row| row.get(0))
+        .ok();
+    if let Some(tabs) = tabs {
+        if let Ok(mut groups) = serde_json::from_str::<Vec<serde_json::Value>>(&tabs) {
+            let widget_prefix = format!("plugin.{plugin_id}.");
+            let page_prefix = format!("page.{plugin_id}.");
+            for group in &mut groups {
+                let Some(layout) = group.get_mut("layout").and_then(|value| value.as_array_mut()) else {
+                    continue;
+                };
+                layout.retain(|item| {
+                    let id = item.get("i").and_then(|value| value.as_str()).unwrap_or("");
+                    !id.starts_with(&widget_prefix) && !id.starts_with(&page_prefix)
+                });
+            }
+            let encoded = serde_json::to_string(&groups).map_err(|e| e.to_string())?;
+            tx.execute("UPDATE app_settings SET value = ?1 WHERE key = 'dashboardTabs'", [encoded])
+                .map_err(|e| e.to_string())?;
+        }
+    }
+
     // 専用テーブル導入前のプラグインがapp_settingsへ保存した名前空間付きキーも削除する。
     for prefix in [format!("plugin:{plugin_id}:"), format!("plugin.{plugin_id}.")] {
         tx.execute("DELETE FROM app_settings WHERE substr(key, 1, length(?1)) = ?1", [&prefix])

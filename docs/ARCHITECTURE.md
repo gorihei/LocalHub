@@ -61,7 +61,8 @@ REQUIREMENTS.md         要件定義(正)
 ## フロントエンド画面一覧(`src/pages/`, サイドバー掲載順)
 
 1. **ホーム(ダッシュボード)** — `HomePage.tsx`。react-grid-layoutベースのウィジェット
-   グリッド。追加/削除/移動/リサイズ、SQLiteへの永続化、1段階Undo。
+   グリッド。複数タブによるグループ化、タブ間移動、追加/削除/移動/リサイズ、
+   SQLiteへの永続化、1段階Undo。既存の単一レイアウトは初回読み込み時にメインタブへ移行する。
 2. **検索** — `SearchPage.tsx`(横断検索)、`CommandPalette.tsx`(Ctrl+K)。
 3. **自動化** — `AutomationPage.tsx`。トリガー(手動/起動時/スケジュール)+アクション列の
    フロービルダー。`risk_level>=2`のコマンドは登録自体を拒否(FR-AUTO-005)。
@@ -70,7 +71,8 @@ REQUIREMENTS.md         要件定義(正)
    [ADR-0003](adr/0003-plugin-webview-architecture.md)の仕組みで専用UIを埋め込み表示。
 5. **AI CLI** — `AiCliPage.tsx`。Codex CLI、Claude Code、Gemini CLIを検出し、選択した
    作業フォルダーでConPTYセッションとして起動する。複数セッションの切り替え・終了・
-   稼働状態表示に対応し、別画面へ移動してもプロセスを維持する。
+   稼働状態表示に対応し、別画面へ移動してもプロセスを維持する。検出・起動・セキュリティ
+   境界の詳細は[ADR-0006](adr/0006-ai-cli-session-management.md)を参照。
 6. **開発者ツール** — `DevToolsPage.tsx`。JSON/YAML/XML整形、テキスト変換、UUID/ハッシュ、
    タイムスタンプ変換、正規表現テスト、差分表示、カラー変換、JWTデコーダー、
    ダミーデータ生成、Markdownプレビュー、進数変換、URL解析、文字数カウント。
