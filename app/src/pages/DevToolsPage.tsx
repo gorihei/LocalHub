@@ -1,9 +1,12 @@
 // §6.11 開発者ツールボックス(v1)。JSON整形・Base64・URLエンコード・
 // UUID/ハッシュ生成・タイムスタンプ変換・正規表現テスト。
-// すべてブラウザ標準API(webview内)だけで完結し、入力を外部へ送信しない
+// 画像背景透過のみONNX Runtime Webを利用し、それ以外はブラウザ標準APIで完結する。
+// いずれも入力データを外部へ送信しない
 // (§6.11「変換は入力を暗黙に外部送信せず、ローカルで処理する」)。
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type ChangeEvent, type DragEvent } from "react";
 import * as yaml from "js-yaml";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import "./pages.css";
 
 type ToolTab =
@@ -23,7 +26,8 @@ type ToolTab =
   | "url"
   | "count"
   | "password"
-  | "unit";
+  | "unit"
+  | "background";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -1323,6 +1327,153 @@ function UnitTool() {
   );
 }
 
+function BackgroundRemovalTool() {
+  const [file, setFile] = useState<File | null>(null);
+  const [inputUrl, setInputUrl] = useState("");
+  const [outputUrl, setOutputUrl] = useState("");
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("画像を選択してください");
+  const [error, setError] = useState("");
+
+  useEffect(() => () => {
+    if (inputUrl) URL.revokeObjectURL(inputUrl);
+  }, [inputUrl]);
+
+  useEffect(() => () => {
+    if (outputUrl) URL.revokeObjectURL(outputUrl);
+  }, [outputUrl]);
+
+  const selectFile = (nextFile: File | undefined) => {
+    if (!nextFile) return;
+    if (!nextFile.type.startsWith("image/")) {
+      setError("画像ファイルを選択してください");
+      return;
+    }
+
+    if (inputUrl) URL.revokeObjectURL(inputUrl);
+    if (outputUrl) URL.revokeObjectURL(outputUrl);
+    setFile(nextFile);
+    setInputUrl(URL.createObjectURL(nextFile));
+    setOutputUrl("");
+    setOutputBlob(null);
+    setProgress(0);
+    setStatus("処理を開始できます");
+    setError("");
+  };
+
+  const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    selectFile(event.target.files?.[0]);
+    event.target.value = "";
+  };
+
+  const onDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    selectFile(event.dataTransfer.files[0]);
+  };
+
+  const removeImageBackground = async () => {
+    if (!file || processing) return;
+    setProcessing(true);
+    setProgress(0);
+    setError("");
+    setStatus("AIモデルを準備しています…");
+
+    try {
+      // 重いONNXランタイムを、機能が実行されるまでメインバンドルへ読み込まない。
+      const { removeBackground } = await import("@imgly/background-removal");
+      const result = await removeBackground(file, {
+        model: "isnet_quint8",
+        device: "cpu",
+        output: { format: "image/png", quality: 1, type: "foreground" },
+        progress: (_key, current, total) => {
+          if (total > 0) setProgress(Math.min(100, Math.round((current / total) * 100)));
+          setStatus("AIモデルをダウンロードしています…");
+        },
+      });
+
+      if (outputUrl) URL.revokeObjectURL(outputUrl);
+      setOutputBlob(result);
+      setOutputUrl(URL.createObjectURL(result));
+      setProgress(100);
+      setStatus("背景透過が完了しました");
+    } catch (cause) {
+      setError(`背景透過に失敗しました: ${cause instanceof Error ? cause.message : String(cause)}`);
+      setStatus("処理に失敗しました");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const download = async () => {
+    if (!outputBlob || !file || saving) return;
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+    const destination = await save({
+      defaultPath: `${baseName}-transparent.png`,
+      filters: [{ name: "PNG画像", extensions: ["png"] }],
+    });
+    if (!destination) return;
+
+    setSaving(true);
+    setError("");
+    setStatus("PNGを保存しています…");
+    try {
+      await writeFile(destination, new Uint8Array(await outputBlob.arrayBuffer()));
+      setStatus(`PNGを保存しました: ${destination}`);
+    } catch (cause) {
+      setError(`PNGの保存に失敗しました: ${cause instanceof Error ? cause.message : String(cause)}`);
+      setStatus("保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="panel-card background-removal-tool">
+      <div>
+        <h2>画像背景透過</h2>
+        <p className="background-removal-note">
+          画像は端末内で処理され、外部へ送信されません。初回のみAIモデル（約40MB）をIMG.LYからダウンロードします。
+        </p>
+      </div>
+
+      <label className="background-dropzone" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
+        <input type="file" accept="image/*" onChange={onFileChange} disabled={processing} />
+        <span>{file ? file.name : "画像を選択、またはここへドロップ"}</span>
+        <small>PNG、JPEG、WebPなど</small>
+      </label>
+
+      {(inputUrl || outputUrl) && (
+        <div className="background-preview-grid">
+          <figure>
+            <figcaption>元画像</figcaption>
+            {inputUrl && <img src={inputUrl} alt="背景透過前" />}
+          </figure>
+          <figure className="transparent-preview">
+            <figcaption>透過結果</figcaption>
+            {outputUrl ? <img src={outputUrl} alt="背景透過後" /> : <div className="background-preview-empty">処理後の画像が表示されます</div>}
+          </figure>
+        </div>
+      )}
+
+      <div className="background-removal-actions">
+        <button className="btn primary" onClick={removeImageBackground} disabled={!file || processing}>
+          {processing ? "処理中…" : "背景を透過する"}
+        </button>
+        <button className="btn" onClick={download} disabled={!outputBlob || processing || saving}>
+          {saving ? "保存中…" : "PNGを保存"}
+        </button>
+        <span>{status}</span>
+      </div>
+
+      {processing && <progress className="background-removal-progress" max={100} value={progress} />}
+      {error && <div className="background-removal-error">{error}</div>}
+    </div>
+  );
+}
+
 export default function DevToolsPage() {
   const [tab, setTab] = useState<ToolTab>("json");
 
@@ -1387,6 +1538,9 @@ export default function DevToolsPage() {
           <button className={tab === "unit" ? "active" : ""} onClick={() => setTab("unit")}>
             単位変換
           </button>
+          <button className={tab === "background" ? "active" : ""} onClick={() => setTab("background")}>
+            画像背景透過
+          </button>
         </div>
         {tab === "json" && <JsonTool />}
         {tab === "yaml" && <YamlTool />}
@@ -1405,6 +1559,7 @@ export default function DevToolsPage() {
         {tab === "count" && <TextCountTool />}
         {tab === "password" && <PasswordTool />}
         {tab === "unit" && <UnitTool />}
+        {tab === "background" && <BackgroundRemovalTool />}
       </div>
     </div>
   );

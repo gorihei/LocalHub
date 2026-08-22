@@ -532,3 +532,137 @@ body.density-compact .setting-row {
   width: 11px;
   height: 11px;
 }
+
+/* Developer tools: in-browser image background removal. */
+.background-removal-tool {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.background-removal-tool h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.background-removal-note {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.background-dropzone {
+  min-height: 104px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.background-dropzone:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.background-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.background-dropzone span {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.background-dropzone small {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.background-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.background-preview-grid figure {
+  margin: 0;
+  min-width: 0;
+}
+
+.background-preview-grid figcaption {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  margin-bottom: 6px;
+}
+
+.background-preview-grid img,
+.background-preview-empty {
+  display: block;
+  width: 100%;
+  height: 280px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+
+.transparent-preview img,
+.transparent-preview .background-preview-empty {
+  background-color: #f7f7f7;
+  background-image:
+    linear-gradient(45deg, #ddd 25%, transparent 25%),
+    linear-gradient(-45deg, #ddd 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ddd 75%),
+    linear-gradient(-45deg, transparent 75%, #ddd 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.background-preview-empty {
+  display: grid;
+  place-items: center;
+  color: #666;
+  font-size: 12px;
+}
+
+.background-removal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.background-removal-actions span {
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.background-removal-progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.background-removal-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .background-preview-grid {
+    grid-template-columns: 1fr;
+  }
+}

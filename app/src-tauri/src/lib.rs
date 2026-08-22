@@ -136,6 +136,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         // 付録B ダッシュボードウィジェット「クリップボード履歴」用。
         .plugin(tauri_plugin_clipboard_manager::init())
         // §6.10設定「一般」: OS起動時の自動起動。有効/無効の切り替え自体は

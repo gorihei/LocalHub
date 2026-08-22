@@ -12,6 +12,7 @@ Local Hub は、日常的に使うツールや情報をひとつの画面にま�
 - ConPTY を利用したタブ式 PowerShell ターミナル
 - 横断検索とコマンドパレット
 - プロセス・ポート監視
+- 端末内AI処理による画像の背景透過とPNG保存
 - トリガー、条件、アクションを組み合わせる自動化
 - サイドカープロセスとして分離されたプラグイン
 - SQLite によるローカルデータ保存
@@ -83,4 +84,6 @@ cargo check --manifest-path plugins/todo-plugin/Cargo.toml
 
 ## ライセンス
 
-[MIT License](LICENSE)
+Local Hubの独自コードは[MIT License](LICENSE)です。画像背景透過機能が利用する
+`@imgly/background-removal` はAGPL-3.0で提供されています。配布前に
+[サードパーティライセンス](THIRD_PARTY_NOTICES.md)を確認してください。

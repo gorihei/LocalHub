@@ -13,6 +13,7 @@
     "global-shortcut:default",
     "notification:default",
     "dialog:default",
+    "fs:allow-write-file",
     "autostart:default",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
