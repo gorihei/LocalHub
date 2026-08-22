@@ -28,6 +28,8 @@ const CLI_COLORS: Record<AiCliInfo["id"], string> = {
   gemini: "#a78bfa",
 };
 const AI_CLI_CWD_KEY = "aiCliWorkingDirectory";
+const AI_CLI_LAUNCHER_COLLAPSED_KEY = "aiCliLauncherCollapsed";
+const AI_CLI_SESSION_LIST_COLLAPSED_KEY = "aiCliSessionListCollapsed";
 
 export default function AiCliPage() {
   const [clients, setClients] = useState<AiCliInfo[]>([]);
@@ -36,6 +38,8 @@ export default function AiCliPage() {
   const [cwd, setCwd] = useState("");
   const [detecting, setDetecting] = useState(true);
   const [error, setError] = useState("");
+  const [launcherCollapsed, setLauncherCollapsed] = useState(false);
+  const [sessionListCollapsed, setSessionListCollapsed] = useState(false);
   const nextId = useRef(1);
   const { cliFontSize, cliTheme } = useSettings();
 
@@ -52,13 +56,39 @@ export default function AiCliPage() {
     detect();
     invoke<Record<string, string>>("settings_get_all")
       .then((settings) => {
+        setLauncherCollapsed(settings[AI_CLI_LAUNCHER_COLLAPSED_KEY] === "true");
+        setSessionListCollapsed(settings[AI_CLI_SESSION_LIST_COLLAPSED_KEY] === "true");
         const saved = settings[AI_CLI_CWD_KEY];
-        if (saved) return saved;
-        return invoke<string | null>("ai_cli_default_cwd");
+        if (saved) {
+          setCwd(saved);
+          return;
+        }
+        return invoke<string | null>("ai_cli_default_cwd").then((directory) => directory && setCwd(directory));
       })
-      .then((directory) => directory && setCwd(directory))
       .catch(() => {});
   }, []);
+
+  const toggleLauncher = () => {
+    setLauncherCollapsed((current) => {
+      const next = !current;
+      invoke("settings_set", {
+        key: AI_CLI_LAUNCHER_COLLAPSED_KEY,
+        value: String(next),
+      }).catch(() => {});
+      return next;
+    });
+  };
+
+  const toggleSessionList = () => {
+    setSessionListCollapsed((current) => {
+      const next = !current;
+      invoke("settings_set", {
+        key: AI_CLI_SESSION_LIST_COLLAPSED_KEY,
+        value: String(next),
+      }).catch(() => {});
+      return next;
+    });
+  };
 
   const chooseFolder = async () => {
     const selected = await open({ directory: true, multiple: false, title: "AI CLIの作業フォルダーを選択" });
@@ -120,56 +150,99 @@ export default function AiCliPage() {
         </button>
       </header>
 
-      <section className="ai-cli-launcher">
-        <div className="ai-cli-directory">
-          <span>作業フォルダー</span>
-          <button className="ai-cli-path" onClick={chooseFolder} title={cwd || "作業フォルダーを選択"}>
-            {cwd || "未指定（アプリの作業フォルダー）"}
+      <section className={`ai-cli-launcher${launcherCollapsed ? " collapsed" : ""}`}>
+        <div className="ai-cli-launcher-head">
+          <div className="ai-cli-launcher-summary">
+            <strong>作業フォルダーとCLI</strong>
+            {launcherCollapsed && (
+              <span title={cwd || "未指定（アプリの作業フォルダー）"}>
+                {cwd || "未指定（アプリの作業フォルダー）"}
+              </span>
+            )}
+          </div>
+          <button
+            className="ai-cli-collapse-button"
+            type="button"
+            onClick={toggleLauncher}
+            aria-expanded={!launcherCollapsed}
+          >
+            <span>{launcherCollapsed ? "展開" : "折りたたむ"}</span>
+            <span aria-hidden="true">{launcherCollapsed ? "⌄" : "⌃"}</span>
           </button>
-          <button className="btn" onClick={chooseFolder}>選択</button>
-          {cwd && <button className="btn" onClick={clearFolder}>解除</button>}
         </div>
-        <div className="ai-cli-cards">
-          {clients.map((cli) => (
-            <button key={cli.id} className="ai-cli-card" disabled={!cli.installed} onClick={() => startSession(cli)}>
-              <span className="ai-cli-logo" style={{ background: `${CLI_COLORS[cli.id]}22`, color: CLI_COLORS[cli.id] }}>
-                {cli.label.slice(0, 1)}
-              </span>
-              <span className="ai-cli-card-copy">
-                <strong>{cli.label}</strong>
-                <small>{cli.installed ? cli.version || cli.path : "インストールされていません"}</small>
-              </span>
-              <span className={`ai-cli-detect-dot ${cli.installed ? "available" : "missing"}`} />
-            </button>
-          ))}
-          {!detecting && clients.length === 0 && <div className="ai-cli-empty">対応するAI CLIが見つかりませんでした</div>}
-        </div>
-        {error && <div className="ai-cli-error">{error}</div>}
+        {!launcherCollapsed && (
+          <div className="ai-cli-launcher-content">
+            <div className="ai-cli-directory">
+              <span>作業フォルダー</span>
+              <button className="ai-cli-path" onClick={chooseFolder} title={cwd || "作業フォルダーを選択"}>
+                {cwd || "未指定（アプリの作業フォルダー）"}
+              </button>
+              <button className="btn" onClick={chooseFolder}>選択</button>
+              {cwd && <button className="btn" onClick={clearFolder}>解除</button>}
+            </div>
+            <div className="ai-cli-cards">
+              {clients.map((cli) => (
+                <button key={cli.id} className="ai-cli-card" disabled={!cli.installed} onClick={() => startSession(cli)}>
+                  <span className="ai-cli-logo" style={{ background: `${CLI_COLORS[cli.id]}22`, color: CLI_COLORS[cli.id] }}>
+                    {cli.label.slice(0, 1)}
+                  </span>
+                  <span className="ai-cli-card-copy">
+                    <strong>{cli.label}</strong>
+                    <small>{cli.installed ? cli.version || cli.path : "インストールされていません"}</small>
+                  </span>
+                  <span className={`ai-cli-detect-dot ${cli.installed ? "available" : "missing"}`} />
+                </button>
+              ))}
+              {!detecting && clients.length === 0 && <div className="ai-cli-empty">対応するAI CLIが見つかりませんでした</div>}
+            </div>
+            {error && <div className="ai-cli-error">{error}</div>}
+          </div>
+        )}
       </section>
 
-      <section className="ai-cli-workspace">
+      <section className={`ai-cli-workspace${sessionListCollapsed ? " session-list-collapsed" : ""}`}>
         <aside className="ai-session-list">
-          <div className="ai-session-list-title">セッション <span>{sessions.length}</span></div>
+          <div className="ai-session-list-title">
+            {!sessionListCollapsed && <span className="ai-session-list-label">セッション <span>{sessions.length}</span></span>}
+            <button
+              className="ai-session-list-toggle"
+              type="button"
+              onClick={toggleSessionList}
+              title={sessionListCollapsed ? "セッション一覧を展開" : "セッション一覧を縮小"}
+              aria-label={sessionListCollapsed ? "セッション一覧を展開" : "セッション一覧を縮小"}
+            >
+              {sessionListCollapsed ? "›" : "‹"}
+            </button>
+          </div>
           {sessions.map((session) => (
-            <button key={session.id} className={`ai-session-item${activeId === session.id ? " active" : ""}`} onClick={() => setActiveId(session.id)}>
+            <button
+              key={session.id}
+              className={`ai-session-item${activeId === session.id ? " active" : ""}`}
+              onClick={() => setActiveId(session.id)}
+              title={sessionListCollapsed ? `${session.cli.label} — ${session.cwd || "アプリの作業フォルダー"}` : undefined}
+            >
               <span className={`ai-session-status ${session.status}`} />
-              <span className="ai-session-copy">
-                <strong>{session.cli.label}</strong>
-                <small>{session.cwd || "アプリの作業フォルダー"}</small>
-              </span>
-              <span
-                className="ai-session-close"
-                title="セッションを終了"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  closeSession(session.id);
-                }}
-              >
-                ×
-              </span>
+              {!sessionListCollapsed && (
+                <>
+                  <span className="ai-session-copy">
+                    <strong>{session.cli.label}</strong>
+                    <small>{session.cwd || "アプリの作業フォルダー"}</small>
+                  </span>
+                  <span
+                    className="ai-session-close"
+                    title="セッションを終了"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      closeSession(session.id);
+                    }}
+                  >
+                    ×
+                  </span>
+                </>
+              )}
             </button>
           ))}
-          {sessions.length === 0 && <div className="ai-session-empty">上のCLIを選択してセッションを開始します</div>}
+          {sessions.length === 0 && !sessionListCollapsed && <div className="ai-session-empty">上のCLIを選択してセッションを開始します</div>}
         </aside>
 
         <div className="ai-session-terminal">
