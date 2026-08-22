@@ -1,0 +1,53 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# 実行ファイル名を明示的に指定する。指定しないと[package].name(="app")が
+# そのままバイナリ名(app.exe)になり、タスクマネージャーやプロセス一覧で
+# 「Local Hub」だと識別できない不便があった(実機で指摘を受けて変更)。
+# [package].nameとcrate名("app")自体は変更しない: リポジトリ内の各種
+# 開発スクリプト・パスがそれに依存しており、変更の影響範囲が大きすぎるため。
+[[bin]]
+name = "LocalHub"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["image-png", "tray-icon"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+portable-pty = "0.9.0"
+tokio = { version = "1.53.1", features = ["sync", "time", "rt"] }
+tauri-plugin-global-shortcut = "2.3.2"
+tauri-plugin-notification = "2.3.3"
+tauri-plugin-window-state = "2.4.1"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+keyring-core = "1.0.0"
+windows-native-keyring-store = "1.1.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-appender = "0.2.5"
+tauri-plugin-dialog = "2.7.2"
+systemicons = "0.9.13"
+base64 = "0.23.1"
+sysinfo = "0.39.6"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-clipboard-manager = "2"
+chrono = "0.4"
+

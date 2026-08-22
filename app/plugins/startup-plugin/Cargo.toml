@@ -1,0 +1,13 @@
+[package]
+name = "startup-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "Windows起動時に自動実行されるプログラムを一覧するプラグイン"
+
+[[bin]]
+name = "startup-plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,81 @@
+{
+  "id": "com.gorihei.todo-plugin",
+  "name": "ToDoリスト",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/todo-plugin.exe",
+  "description": "ローカルに保存するシンプルなToDoリスト管理",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": [],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [
+      {
+        "id": "todo.summary",
+        "title": "ToDoリスト",
+        "command": "plugin.com.gorihei.todo-plugin.todo.summary",
+        "refreshMs": 5000
+      }
+    ],
+    "commands": [
+      {
+        "id": "todo.list",
+        "method": "list",
+        "title": "ToDo: 一覧表示",
+        "description": "すべてのタスクを返します",
+        "riskLevel": 0
+      },
+      {
+        "id": "todo.add",
+        "method": "add",
+        "title": "ToDo: タスク追加",
+        "description": "新しいタスクを追加します(paramsに{\"title\": \"...\"}が必要)",
+        "riskLevel": 0
+      },
+      {
+        "id": "todo.complete",
+        "method": "complete",
+        "title": "ToDo: 完了にする",
+        "description": "タスクを完了状態にします(paramsに{\"id\": 数値}が必要)",
+        "riskLevel": 0
+      },
+      {
+        "id": "todo.remove",
+        "method": "remove",
+        "title": "ToDo: タスク削除",
+        "description": "タスクを削除します(paramsに{\"id\": 数値}が必要)",
+        "riskLevel": 1
+      },
+      {
+        "id": "todo.summary",
+        "method": "summary",
+        "title": "ToDo: サマリー",
+        "description": "未完了タスク件数と直近3件を返します(ウィジェット用)",
+        "riskLevel": 0
+      },
+      {
+        "id": "todo.search",
+        "method": "search",
+        "title": "ToDo: 検索",
+        "description": "タイトルが部分一致するタスクを返します(横断検索連携用)",
+        "riskLevel": 0
+      }
+    ],
+    "pages": [
+      {
+        "id": "todo.main",
+        "title": "ToDoリスト",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [
+      {
+        "id": "todo.search",
+        "title": "ToDoリスト検索",
+        "command": "plugin.com.gorihei.todo-plugin.todo.search"
+      }
+    ],
+    "automation": {}
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "com.gorihei.deadline-plugin",
+  "name": "締め切りトラッカー",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/deadline-plugin.exe",
+  "description": "締め切り・カウントダウンをローカルに保存して管理します",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": [],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [],
+    "commands": [
+      {
+        "id": "deadline.list",
+        "method": "list",
+        "title": "締め切り: 一覧表示",
+        "description": "登録済みの締め切りを期限が近い順に返します",
+        "riskLevel": 0
+      },
+      {
+        "id": "deadline.add",
+        "method": "add",
+        "title": "締め切り: 追加",
+        "description": "新しい締め切りを追加します(paramsに{\"title\": \"...\", \"dueAt\": \"YYYY-MM-DD\"}が必要)",
+        "riskLevel": 0
+      },
+      {
+        "id": "deadline.remove",
+        "method": "remove",
+        "title": "締め切り: 削除",
+        "description": "締め切りを削除します(paramsに{\"id\": 数値}が必要)",
+        "riskLevel": 1
+      }
+    ],
+    "pages": [
+      {
+        "id": "deadline.main",
+        "title": "締め切りトラッカー",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

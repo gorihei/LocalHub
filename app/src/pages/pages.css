@@ -1,0 +1,534 @@
+/* 各ページ共通のレイアウト・カードスタイル。design/のHTMLモックから移植。 */
+
+.page {
+  padding: 14px 16px 18px;
+}
+
+body.density-compact .page {
+  padding: 9px 11px 12px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+body.density-compact .page-head {
+  margin-bottom: 8px;
+}
+
+.page-head h1 {
+  font-size: 19px;
+  margin: 0 0 4px;
+  font-weight: 650;
+  letter-spacing: 0.1px;
+}
+
+.page-head p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.panel-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 70px 20px;
+  color: var(--text-muted);
+  gap: 10px;
+}
+
+.empty-state .icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-strong);
+  margin-bottom: 6px;
+}
+
+.empty-state .icon-wrap svg {
+  width: 24px;
+  height: 24px;
+}
+
+.empty-state h3 {
+  font-size: 15px;
+  color: var(--text);
+  margin: 0;
+}
+
+.empty-state p {
+  font-size: 12.5px;
+  max-width: 360px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* dashboard grid widgets */
+.widget {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.widget-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+/* ドラッグの起点はwidget-head(タイトルバー)に限定している(HomePage.tsxの
+   dragConfig.handle参照)。掴める場所であることが伝わるようカーソルを変える
+   (編集モードでない時はdragConfig.enabledがfalseで実際には動かせないが、
+   別途JSでの出し分けまではせず、簡易的に常時この見た目にしている)。 */
+.widget-head {
+  cursor: grab;
+}
+.widget-head:active {
+  cursor: grabbing;
+}
+
+body.density-compact .widget-head {
+  padding: 4px 7px;
+  gap: 6px;
+}
+
+.widget-head h3 {
+  font-size: 12.5px;
+  font-weight: 650;
+  margin: 0;
+  flex: 1;
+  letter-spacing: 0.1px;
+}
+
+.widget-body {
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+body.density-compact .widget-body {
+  padding: 7px;
+}
+
+/* クイックCLI(ターミナル)は縁いっぱいに表示したいのでpaddingを外す。
+   以前は負のマージンでpaddingを相殺していたが、overflow-x:autoが暗黙に
+   effective になる(overflow-yだけ指定した場合の仕様)影響で、負のマージン
+   により押し出された左端がわずかにクリップされ、文字の左側が見切れる
+   不具合があった。paddingを最初から無くす方が確実。 */
+.widget-body-flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ダッシュボードのドラッグ/リサイズ中、マウスがプラグインページの<iframe>上を
+   通過するとイベントがiframe側の別ドキュメントに奪われ、react-grid-layoutが
+   ドラッグを見失って操作不能になる不具合への対処。ドラッグ中だけ全iframeの
+   pointer-eventsを切り、マウスイベントが常に親(グリッド)側に届くようにする。 */
+.dashboard-dragging iframe {
+  pointer-events: none;
+}
+
+/* plugins table */
+table.plugin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+table.plugin-table th {
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+table.plugin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+
+table.plugin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.plugin-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.plugin-name b {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.plugin-name .row-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* generic result rows (search page, palette-adjacent lists) */
+.result-group {
+  margin-bottom: 20px;
+}
+
+.result-group h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-faint);
+  margin: 0 0 6px;
+  padding: 0 4px;
+}
+
+.row-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 4px;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: var(--radius-s);
+}
+
+.item-row:hover {
+  background: var(--surface-hover);
+}
+
+.row-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.row-title {
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: var(--surface-raised);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.activity-empty {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 2px 8px 2px 6px;
+}
+
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pill-running {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.pill-running::before {
+  background: var(--success);
+}
+
+.pill-failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.pill-failed::before {
+  background: var(--danger);
+}
+
+.pill-stopped {
+  background: var(--surface-raised);
+  color: var(--text-faint);
+}
+
+.pill-stopped::before {
+  background: var(--text-faint);
+}
+
+.table-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.table-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.table-actions .icon-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* settings */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 24px;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav button {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.settings-nav button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.settings-nav button.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+body.density-compact .setting-row {
+  padding: 8px 4px;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-label {
+  max-width: 340px;
+}
+
+.setting-label b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.setting-label span {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.swatch.selected {
+  border-color: var(--text);
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+
+.segmented button {
+  border: none;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--accent);
+  color: #062226;
+  font-weight: 600;
+}
+
+.toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 20px;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: none;
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  top: 3px;
+  left: 3px;
+  transition: var(--transition);
+}
+
+.toggle.on {
+  background: var(--accent-soft);
+}
+
+.toggle.on::after {
+  transform: translateX(16px);
+  background: var(--accent-strong);
+}
+
+.range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 180px;
+}
+
+.range-wrap input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.range-wrap output {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* search page */
+.search-field-lg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 11px 14px;
+  margin-bottom: 8px;
+}
+
+.search-field-lg svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-faint);
+}
+
+.search-field-lg input {
+  flex: 1;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+}
+
+.privacy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 18px;
+}
+
+.privacy-chip svg {
+  width: 11px;
+  height: 11px;
+}

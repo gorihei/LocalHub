@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>環境変数/PATHビューア</title>
+<style>
+  html, body { height: 100%; }
+  body { padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-shrink: 0; flex-wrap: wrap; }
+  .tabs button { border-radius: 999px; padding: 5px 12px; font-size: 11.5px; background: var(--surface-raised, #172033); }
+  .tabs button.active { background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-weight: 700; }
+
+  .search { display: flex; align-items: center; gap: 8px; background: var(--surface-raised, #172033); border: 1px solid var(--border, #2a3443); border-radius: 999px; padding: 4px 14px; margin-bottom: 8px; flex-shrink: 0; }
+  .search input { flex: 1; background: none; border: none; padding: 6px 0; font-size: 12px; color: var(--text, #f3f4f6); outline: none; }
+
+  .note { font-size: 10.5px; color: var(--text-faint, #6b7688); margin-bottom: 8px; flex-shrink: 0; }
+  .error { color: var(--danger, #f87171); font-size: 11.5px; margin-bottom: 8px; flex-shrink: 0; }
+
+  .list { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 3px; padding-bottom: 4px; }
+
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; transition: background 150ms ease; }
+  .row:hover { background: var(--surface-raised, #172033); }
+  .row:hover .del { opacity: 1; }
+  .row .badge { flex-shrink: 0; font-size: 13px; width: 16px; text-align: center; }
+  .row .name { flex-shrink: 0; width: 170px; font-size: 11.5px; font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .value { flex: 1; font-size: 11.5px; font-family: var(--font-mono, monospace); color: var(--text-muted, #9ca3af); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+  .row .value.masked { letter-spacing: 2px; }
+  .row .dup { color: var(--warning, #fbbf24); font-size: 10px; flex-shrink: 0; }
+  .row .del { opacity: 0; flex-shrink: 0; background: none; border: none; color: var(--text-faint, #6b7688); cursor: pointer; font-size: 14px; padding: 2px 4px; transition: opacity 120ms ease, color 120ms ease; }
+  .row .del:hover { color: var(--danger, #f87171); }
+
+  .composer { display: flex; align-items: center; gap: 6px; background: var(--surface-raised, #172033); border: 1px solid var(--border, #2a3443); border-radius: 999px; padding: 4px 4px 4px 14px; margin-top: 8px; flex-shrink: 0; }
+  .composer input { background: none; border: none; padding: 6px 0; font-size: 12px; color: var(--text, #f3f4f6); outline: none; min-width: 0; }
+  .composer input.name { width: 120px; flex-shrink: 0; }
+  .composer input.value { flex: 1; }
+  .round-btn { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; border: none; background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 120ms ease; }
+  .round-btn:hover { transform: scale(1.08); }
+
+  .path-editor { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .path-editor textarea { flex: 1; resize: none; font-family: var(--font-mono, monospace); font-size: 11px; }
+  .path-actions { display: flex; gap: 8px; margin-top: 8px; flex-shrink: 0; }
+
+  .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint, #6b7688); font-size: 12px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(4,6,10,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: var(--surface-raised, #172033); border: 1px solid var(--border, #2a3443); border-radius: 12px; padding: 16px; width: min(90%, 320px); }
+  .modal h4 { margin: 0 0 8px; font-size: 13px; }
+  .modal p { margin: 0 0 12px; font-size: 12px; color: var(--text-muted, #9ca3af); word-break: break-all; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal .danger { background: linear-gradient(135deg, var(--danger, #f87171), #dc2626); color: #fff; border: none; }
+</style>
+</head>
+<body>
+  <div class="tabs">
+    <button id="tabPath" class="active">PATH</button>
+    <button id="tabUserEnv">ユーザー環境変数</button>
+    <button id="tabAllEnv">すべて(参照専用)</button>
+  </div>
+  <div id="error" class="error"></div>
+  <div id="body" style="flex:1; display:flex; flex-direction:column; min-height:0;"></div>
+  <div id="modalRoot"></div>
+
+  <script src="/__bridge.js"></script>
+  <script>
+    const errorEl = document.getElementById("error");
+    const bodyEl = document.getElementById("body");
+    const modalRoot = document.getElementById("modalRoot");
+    const tabPathEl = document.getElementById("tabPath");
+    const tabUserEnvEl = document.getElementById("tabUserEnv");
+    const tabAllEnvEl = document.getElementById("tabAllEnv");
+    const SENSITIVE = /key|token|secret|password|pwd|credential/i;
+    let mode = "path";
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function confirmModal(title, message, onConfirm) {
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <div class="modal">
+            <h4>${escapeHtml(title)}</h4>
+            <p>${message}</p>
+            <div class="actions">
+              <button id="modalCancel">キャンセル</button>
+              <button class="danger" id="modalOk">実行</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("modalCancel").onclick = () => (modalRoot.innerHTML = "");
+      document.getElementById("modalOk").onclick = () => {
+        modalRoot.innerHTML = "";
+        onConfirm();
+      };
+    }
+
+    function setActiveTab(el) {
+      [tabPathEl, tabUserEnvEl, tabAllEnvEl].forEach((b) => b.classList.remove("active"));
+      el.classList.add("active");
+    }
+
+    // ---- PATHタブ ----
+    function renderPathTab() {
+      errorEl.textContent = "";
+      bodyEl.innerHTML = `<div class="path-editor"><textarea id="pathText" spellcheck="false"></textarea>
+        <div class="note">1行1エントリ。保存するとレジストリ(HKCU\\Environment)のユーザーPATHを書き換えます。反映には再ログインが必要な場合があります。</div>
+        <div class="path-actions"><button id="pathSave">保存</button><button id="pathReload">再読込</button></div></div>`;
+      const textEl = document.getElementById("pathText");
+      const load = () => {
+        window.localhub
+          .call("env.getUserPath")
+          .then((r) => (textEl.value = r.value.split(";").filter(Boolean).join("\n")))
+          .catch((err) => (errorEl.textContent = String(err)));
+      };
+      document.getElementById("pathReload").onclick = load;
+      document.getElementById("pathSave").onclick = () => {
+        const entries = textEl.value.split("\n").map((s) => s.trim()).filter(Boolean);
+        confirmModal(
+          "ユーザーPATHを書き換えますか?",
+          `${entries.length}件のエントリで上書きします。誤ったパスに書き換えるとコマンドが動かなくなることがあります。`,
+          () => {
+            window.localhub
+              .call("env.setUserPath", { value: entries.join(";") })
+              .then(load)
+              .catch((err) => (errorEl.textContent = String(err)));
+          }
+        );
+      };
+      load();
+    }
+
+    // ---- ユーザー環境変数タブ ----
+    function renderUserEnvTab() {
+      errorEl.textContent = "";
+      bodyEl.innerHTML = `<div class="list" id="userEnvList"></div>
+        <div class="composer">
+          <input type="text" class="name" id="newName" placeholder="変数名" />
+          <input type="text" class="value" id="newValue" placeholder="値" />
+          <button class="round-btn" id="newAdd">+</button>
+        </div>`;
+      const listEl = document.getElementById("userEnvList");
+
+      const load = () => {
+        window.localhub
+          .call("env.listUserRegistryEnv")
+          .then((entries) => {
+            const visible = entries.filter((e) => e.name.toLowerCase() !== "path");
+            if (visible.length === 0) {
+              listEl.innerHTML = '<div class="empty">ユーザー環境変数はありません</div>';
+              return;
+            }
+            listEl.innerHTML = visible
+              .map(
+                (e) =>
+                  `<div class="row"><span class="name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span><span class="value" style="flex:1" title="${escapeHtml(e.value)}">${escapeHtml(e.value)}</span><button class="del" data-name="${escapeHtml(e.name)}" title="削除">×</button></div>`
+              )
+              .join("");
+            listEl.querySelectorAll(".del").forEach((btn) => {
+              btn.onclick = () => {
+                const name = btn.dataset.name;
+                confirmModal("環境変数を削除しますか?", `<code>${escapeHtml(name)}</code> を削除します。元に戻せません。`, () => {
+                  window.localhub.call("env.deleteUserEnv", { name }).then(load).catch((err) => (errorEl.textContent = String(err)));
+                });
+              };
+            });
+          })
+          .catch((err) => (errorEl.textContent = String(err)));
+      };
+
+      document.getElementById("newAdd").onclick = () => {
+        const name = document.getElementById("newName").value.trim();
+        const value = document.getElementById("newValue").value.trim();
+        if (!name) return;
+        window.localhub
+          .call("env.setUserEnv", { name, value })
+          .then(() => {
+            document.getElementById("newName").value = "";
+            document.getElementById("newValue").value = "";
+            load();
+          })
+          .catch((err) => (errorEl.textContent = String(err)));
+      };
+
+      load();
+    }
+
+    // ---- すべて(参照専用)タブ ----
+    function renderAllEnvTab() {
+      errorEl.textContent = "";
+      bodyEl.innerHTML = `<div class="search"><input type="text" id="query" placeholder="検索…" /></div><div class="list" id="allEnvList"></div>`;
+      const listEl = document.getElementById("allEnvList");
+      const queryEl = document.getElementById("query");
+      const revealed = new Set();
+      let data = [];
+
+      function render() {
+        const q = queryEl.value.trim().toLowerCase();
+        const rows = data.filter((e) => !q || e.name.toLowerCase().includes(q) || e.value.toLowerCase().includes(q));
+        if (rows.length === 0) {
+          listEl.innerHTML = '<div class="empty">該当なし</div>';
+          return;
+        }
+        listEl.innerHTML = rows
+          .map((e) => {
+            const sensitive = SENSITIVE.test(e.name) && !revealed.has(e.name);
+            const displayValue = sensitive ? "•".repeat(Math.min(e.value.length, 24)) : e.value;
+            return `<div class="row"><span class="name" title="${escapeHtml(e.name)}">${escapeHtml(e.name)}</span><span class="value${sensitive ? " masked" : ""}" data-name="${escapeHtml(e.name)}">${escapeHtml(displayValue)}</span></div>`;
+          })
+          .join("");
+        listEl.querySelectorAll(".value").forEach((el) => {
+          el.onclick = () => {
+            const name = el.dataset.name;
+            const entry = data.find((e) => e.name === name);
+            if (SENSITIVE.test(name) && !revealed.has(name)) {
+              revealed.add(name);
+              render();
+              return;
+            }
+            navigator.clipboard.writeText(entry.value);
+          };
+        });
+      }
+
+      queryEl.addEventListener("input", render);
+      window.localhub
+        .call("env.listEnv")
+        .then((d) => {
+          data = d;
+          render();
+        })
+        .catch((err) => (errorEl.textContent = String(err)));
+    }
+
+    tabPathEl.onclick = () => {
+      mode = "path";
+      setActiveTab(tabPathEl);
+      renderPathTab();
+    };
+    tabUserEnvEl.onclick = () => {
+      mode = "userEnv";
+      setActiveTab(tabUserEnvEl);
+      renderUserEnvTab();
+    };
+    tabAllEnvEl.onclick = () => {
+      mode = "allEnv";
+      setActiveTab(tabAllEnvEl);
+      renderAllEnvTab();
+    };
+
+    renderPathTab();
+  </script>
+</body>
+</html>

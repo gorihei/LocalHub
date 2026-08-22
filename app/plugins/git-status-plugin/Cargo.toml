@@ -1,0 +1,13 @@
+[package]
+name = "git-status-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "配下のGitリポジトリの状態(ブランチ・未コミット・push漏れ)を一覧するプラグイン"
+
+[[bin]]
+name = "git-status-plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

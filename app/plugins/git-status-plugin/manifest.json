@@ -1,0 +1,130 @@
+{
+  "id": "com.gorihei.git-status-plugin",
+  "name": "Gitリポジトリ監視",
+  "version": "0.3.0",
+  "apiVersion": "1",
+  "entry": "target/debug/git-status-plugin.exe",
+  "description": "指定フォルダ配下のGitリポジトリの状態確認・コミット・プッシュ・リベースができます",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["filesystem:read", "filesystem:write", "network"],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [],
+    "commands": [
+      {
+        "id": "git.scan",
+        "method": "scan",
+        "title": "Git: リポジトリ一覧を再取得",
+        "description": "指定フォルダ配下のGitリポジトリ状態を返します(paramsに{\"path\": \"...\", \"maxDepth\": 2}、両方省略可)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.getPath",
+        "method": "get_path",
+        "title": "Git: 監視フォルダ取得",
+        "description": "現在設定されている監視フォルダを返します",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.getRepoDetail",
+        "method": "get_repo_detail",
+        "title": "Git: リポジトリ詳細取得",
+        "description": "変更ファイル一覧・最終コミット情報を返します(paramsに{\"path\": \"...\"}が必要)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.log",
+        "method": "log",
+        "title": "Git: コミット履歴取得",
+        "description": "直近のコミット履歴を返します(paramsに{\"path\": \"...\", \"limit\": 20}、limitは省略可)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.showCommit",
+        "method": "show_commit",
+        "title": "Git: コミット詳細取得",
+        "description": "1コミットの全文メッセージ・作者・日時・変更ファイル一覧を返します(paramsに{\"path\":\"...\",\"hash\":\"...\"}が必要)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.fetch",
+        "method": "fetch",
+        "title": "Git: フェッチ",
+        "description": "リモートの最新情報を取得しahead/behindを更新します(paramsに{\"path\": \"...\"}が必要)",
+        "riskLevel": 1,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "git.commit",
+        "method": "commit",
+        "title": "Git: コミット",
+        "description": "選択したファイルをステージしてコミットします(paramsに{\"path\":\"...\",\"files\":[\"...\"],\"message\":\"...\"}が必要)",
+        "riskLevel": 1,
+        "requiresPermission": "filesystem:write"
+      },
+      {
+        "id": "git.push",
+        "method": "push",
+        "title": "Git: プッシュ",
+        "description": "リモートへpushします(paramsに{\"path\": \"...\"}が必要)。force pushはしません",
+        "riskLevel": 2,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "git.pullRebase",
+        "method": "pull_rebase",
+        "title": "Git: pull --rebase",
+        "description": "フェッチしてローカルコミットをリベースします(paramsに{\"path\": \"...\"}が必要)。コンフリクト時は手動解決が必要です",
+        "riskLevel": 2,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "git.abortRebase",
+        "method": "abort_rebase",
+        "title": "Git: リベースを中止",
+        "description": "進行中のリベースを取り消します(paramsに{\"path\": \"...\"}が必要)",
+        "riskLevel": 1,
+        "requiresPermission": "filesystem:write"
+      },
+      {
+        "id": "git.listConflicts",
+        "method": "list_conflicts",
+        "title": "Git: コンフリクト一覧取得",
+        "description": "マージ未解決(コンフリクト中)のファイル一覧を返します(paramsに{\"path\": \"...\"}が必要)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      },
+      {
+        "id": "git.markResolved",
+        "method": "mark_resolved",
+        "title": "Git: 解決済みとしてマーク",
+        "description": "手動修正したファイルをステージします(paramsに{\"path\":\"...\",\"file\":\"...\"}が必要)",
+        "riskLevel": 1,
+        "requiresPermission": "filesystem:write"
+      },
+      {
+        "id": "git.continueRebase",
+        "method": "continue_rebase",
+        "title": "Git: リベースを続行",
+        "description": "コンフリクト解決後にリベースを再開します(paramsに{\"path\": \"...\"}が必要)",
+        "riskLevel": 1,
+        "requiresPermission": "filesystem:write"
+      }
+    ],
+    "pages": [
+      {
+        "id": "git.main",
+        "title": "Gitリポジトリ監視",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Gitリポジトリ監視</title>
+<style>
+  html, body { height: 100%; }
+  body { padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-raised, #172033);
+    border: 1px solid var(--border, #2a3443);
+    border-radius: 999px;
+    padding: 4px 4px 4px 14px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
+  .composer input { flex: 1; background: none; border: none; padding: 6px 0; font-size: 12px; font-family: var(--font-mono, monospace); color: var(--text, #f3f4f6); outline: none; min-width: 0; }
+  .round-btn {
+    width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; border: none;
+    background: var(--surface-hover, #1c2740); color: var(--text, #f3f4f6); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: transform 120ms ease, background 120ms ease;
+  }
+  .round-btn:hover { transform: scale(1.08); background: var(--border, #2a3443); }
+  .round-btn.primary { background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-weight: 700; }
+
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 6px; flex-shrink: 0; }
+  .toolbar button { font-size: 10.5px; background: none; border: none; color: var(--accent, #22d3ee); cursor: pointer; text-decoration: underline; }
+
+  .error { color: var(--danger, #f87171); font-size: 11.5px; margin-bottom: 8px; flex-shrink: 0; }
+
+  .list { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px; }
+  .repo { border-radius: 10px; transition: background 150ms ease; }
+  .repo:hover { background: var(--surface-raised, #172033); }
+  .repo .top { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; }
+  .repo .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .repo .dot.clean { background: var(--success, #34d399); }
+  .repo .dot.dirty { background: var(--warning, #fbbf24); }
+  .repo .name { flex: 1; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .repo .branch { font-size: 10.5px; font-family: var(--font-mono, monospace); color: var(--text-muted, #9ca3af); background: var(--surface-hover, #1c2740); border-radius: 999px; padding: 1px 8px; flex-shrink: 0; }
+  .repo .sub { display: flex; gap: 10px; margin: 0 10px 8px 26px; font-size: 10.5px; color: var(--text-faint, #6b7688); }
+  .repo .sub .changed { color: var(--warning, #fbbf24); }
+  .repo .sub .ahead { color: var(--accent, #22d3ee); }
+  .repo .sub .behind { color: var(--danger, #f87171); }
+
+  .detail { margin: 0 10px 10px 26px; padding: 8px 10px; background: var(--surface, #111827); border-radius: 8px; font-size: 11px; }
+  .detail .commitinfo { color: var(--text-muted, #9ca3af); margin-bottom: 6px; }
+  .detail .commitinfo b { color: var(--text, #f3f4f6); font-weight: 600; }
+  .detail .files { display: flex; flex-direction: column; gap: 2px; max-height: 140px; overflow-y: auto; margin-bottom: 8px; }
+  .detail .file { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono, monospace); }
+  .detail .file input { margin: 0; }
+  .detail .file .st { flex-shrink: 0; width: 16px; text-align: center; font-weight: 700; }
+  .detail .file .st.M { color: var(--warning, #fbbf24); }
+  .detail .file .st.A { color: var(--success, #34d399); }
+  .detail .file .st.D { color: var(--danger, #f87171); }
+  .detail .file .st.Q { color: var(--text-faint, #6b7688); }
+  .detail .file .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted, #9ca3af); }
+  .detail .msg { width: 100%; box-sizing: border-box; resize: vertical; min-height: 44px; font-size: 11px; margin-bottom: 6px; }
+  .detail .actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .detail .actions button { font-size: 10.5px; }
+  .detail .actions .commit-btn { background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-weight: 700; border: none; }
+  .detail .actions .danger { color: var(--danger, #f87171); }
+  .detail .result { font-size: 10.5px; margin-top: 6px; white-space: pre-wrap; word-break: break-all; }
+  .detail .result.ok { color: var(--success, #34d399); }
+  .detail .result.err { color: var(--danger, #f87171); }
+
+  .log { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-soft, #212b3b); display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+  .log .commit { display: flex; gap: 8px; font-size: 10.5px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+  .log .commit:hover { background: var(--surface-hover, #1c2740); }
+  .log .commit .hash { flex-shrink: 0; font-family: var(--font-mono, monospace); color: var(--accent, #22d3ee); }
+  .log .commit .msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log .commit .meta { flex-shrink: 0; color: var(--text-faint, #6b7688); }
+  .commit-detail { padding: 8px; margin: 2px 0 6px; background: var(--surface, #111827); border-radius: 8px; font-size: 10.5px; }
+  .commit-detail .body { color: var(--text-muted, #9ca3af); white-space: pre-wrap; margin-bottom: 6px; }
+  .commit-detail .meta { color: var(--text-faint, #6b7688); margin-bottom: 6px; }
+  .commit-detail .file { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-family: var(--font-mono, monospace); }
+  .commit-detail .file .st { flex-shrink: 0; width: 14px; text-align: center; font-weight: 700; }
+  .commit-detail .file .path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted, #9ca3af); }
+  .commit-detail .file button { font-size: 9.5px; padding: 2px 6px; }
+
+  .conflicts { margin-top: 8px; padding: 8px; background: var(--danger-soft, rgba(248,113,113,.14)); border-radius: 8px; }
+  .conflicts .title { font-size: 11px; font-weight: 700; color: var(--danger, #f87171); margin-bottom: 6px; }
+  .conflicts .cfile { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 11px; }
+  .conflicts .cfile .path { flex: 1; font-family: var(--font-mono, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conflicts .cfile.resolved .path { text-decoration: line-through; color: var(--text-faint, #6b7688); }
+  .conflicts .cfile button { font-size: 10px; }
+  .conflicts .cont-btn { margin-top: 8px; width: 100%; background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-weight: 700; border: none; }
+
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-faint, #6b7688); font-size: 12px; }
+  .empty .emoji { font-size: 26px; opacity: .8; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(4,6,10,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: var(--surface-raised, #172033); border: 1px solid var(--border, #2a3443); border-radius: 12px; padding: 16px; width: min(90%, 320px); }
+  .modal h4 { margin: 0 0 8px; font-size: 13px; }
+  .modal p { margin: 0 0 12px; font-size: 12px; color: var(--text-muted, #9ca3af); word-break: break-all; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal .go { background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; border: none; }
+</style>
+</head>
+<body>
+  <div class="composer">
+    <input type="text" id="path" placeholder="C:\Users\...\projects" />
+    <button class="round-btn" id="pick" title="フォルダ選択">📁</button>
+    <button class="round-btn primary" id="scan" title="更新">↻</button>
+  </div>
+  <div class="toolbar"><button id="fetchAll">すべてフェッチ</button></div>
+  <div id="error" class="error"></div>
+  <div id="list" class="list">
+    <div class="empty"><span class="emoji">🗂️</span>Gitリポジトリを含むフォルダを選んでください</div>
+  </div>
+  <div id="modalRoot"></div>
+
+  <script src="/__bridge.js"></script>
+  <script>
+    const pathEl = document.getElementById("path");
+    const errorEl = document.getElementById("error");
+    const listEl = document.getElementById("list");
+    const scanBtn = document.getElementById("scan");
+    const pickBtn = document.getElementById("pick");
+    const fetchAllBtn = document.getElementById("fetchAll");
+    const modalRoot = document.getElementById("modalRoot");
+
+    let repos = [];
+    let expanded = null;
+    const rebaseFailed = new Set();
+    const selectedFiles = new Map(); // path -> Set<filepath>
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function confirmModal(title, message, actionLabel, onConfirm) {
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <div class="modal">
+            <h4>${escapeHtml(title)}</h4>
+            <p>${message}</p>
+            <div class="actions">
+              <button id="modalCancel">キャンセル</button>
+              <button class="go" id="modalOk">${escapeHtml(actionLabel)}</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("modalCancel").onclick = () => (modalRoot.innerHTML = "");
+      document.getElementById("modalOk").onclick = () => {
+        modalRoot.innerHTML = "";
+        onConfirm();
+      };
+    }
+
+    const STATUS_CLASS = { M: "M", A: "A", D: "D", "?": "Q", R: "M", C: "A", U: "D" };
+    function statusClass(code) {
+      const c = code.trim()[0] || code[1] || "?";
+      return STATUS_CLASS[c] || "Q";
+    }
+
+    function renderList() {
+      if (repos.length === 0) {
+        listEl.innerHTML = '<div class="empty"><span class="emoji">🔍</span>Gitリポジトリが見つかりません</div>';
+        return;
+      }
+      listEl.innerHTML = repos
+        .map((r) => {
+          const sub = [];
+          if (r.changedCount > 0) sub.push(`<span class="changed">変更 ${r.changedCount}件</span>`);
+          if (r.ahead) sub.push(`<span class="ahead">↑${r.ahead}</span>`);
+          if (r.behind) sub.push(`<span class="behind">↓${r.behind}</span>`);
+          const isOpen = expanded === r.path;
+          return `<div class="repo">
+            <div class="top" data-path="${escapeHtml(r.path)}">
+              <span class="dot ${r.dirty ? "dirty" : "clean"}"></span>
+              <span class="name" title="${escapeHtml(r.path)}">${escapeHtml(r.name)}</span>
+              <span class="branch">${escapeHtml(r.branch)}</span>
+            </div>
+            ${sub.length ? `<div class="sub">${sub.join("")}</div>` : ""}
+            ${isOpen ? `<div class="detail" id="detail-${escapeHtml(r.name)}">読み込み中…</div>` : ""}
+          </div>`;
+        })
+        .join("");
+
+      listEl.querySelectorAll(".top").forEach((el) => {
+        el.onclick = () => {
+          const path = el.dataset.path;
+          expanded = expanded === path ? null : path;
+          renderList();
+          if (expanded) loadDetail(path);
+        };
+      });
+    }
+
+    // 一覧の「変更N件」「↑↓」バッジは、詳細パネル(get_repo_detail)の方が
+    // より新しい情報を取得できたときにその場で同期する。フルの再スキャン
+    // (renderList()の再実行)を挟むと、展開中の詳細パネルが一瞬「読み込み中…」に
+    // 戻ってしまい、しかも自動では再読込されず古い表示のまま固まる不具合が
+    // あったため、DOMを直接書き換える軽量な同期にしている。
+    function updateSummaryInPlace(repo) {
+      const topEl = [...document.querySelectorAll(".top")].find((e) => e.dataset.path === repo.path);
+      if (!topEl) return;
+      const dot = topEl.querySelector(".dot");
+      if (dot) dot.className = "dot " + (repo.dirty ? "dirty" : "clean");
+
+      const repoEl = topEl.parentElement;
+      let subEl = repoEl.querySelector(".sub");
+      const parts = [];
+      if (repo.changedCount > 0) parts.push(`<span class="changed">変更 ${repo.changedCount}件</span>`);
+      if (repo.ahead) parts.push(`<span class="ahead">↑${repo.ahead}</span>`);
+      if (repo.behind) parts.push(`<span class="behind">↓${repo.behind}</span>`);
+      if (parts.length === 0) {
+        if (subEl) subEl.remove();
+      } else {
+        if (!subEl) {
+          subEl = document.createElement("div");
+          subEl.className = "sub";
+          topEl.insertAdjacentElement("afterend", subEl);
+        }
+        subEl.innerHTML = parts.join("");
+      }
+    }
+
+    function detailEl(repo) {
+      return document.getElementById(`detail-${escapeHtml(repo.name)}`);
+    }
+
+    function showResult(el, ok, text) {
+      const old = el.querySelector(".result");
+      if (old) old.remove();
+      const div = document.createElement("div");
+      div.className = "result " + (ok ? "ok" : "err");
+      div.textContent = text;
+      el.appendChild(div);
+    }
+
+    function loadDetail(path) {
+      const repo = repos.find((r) => r.path === path);
+      if (!selectedFiles.has(path)) selectedFiles.set(path, new Set());
+      window.localhub
+        .call("git.getRepoDetail", { path })
+        .then((d) => {
+          const el = detailEl(repo);
+          if (!el) return;
+
+          // 一覧側の「変更N件」バッジ等は前回スキャン時点のキャッシュなので、
+          // ここで取得できた最新情報に同期しておく(バッジと詳細パネルの表示が
+          // 食い違って見える不具合の対策)。
+          repo.changedCount = d.files.length;
+          repo.dirty = d.files.length > 0;
+          repo.ahead = d.ahead;
+          repo.behind = d.behind;
+          updateSummaryInPlace(repo);
+
+          const sel = selectedFiles.get(path);
+          // 初回展開時は全ファイルを選択済みにしておく(未選択のまま気づかず
+          // コミットボタンを押しても何も起きない、を避けるため)。
+          if (sel.size === 0) d.files.forEach((f) => sel.add(f.path));
+
+          let html = "";
+          if (d.lastCommit) {
+            html += `<div class="commitinfo">最新: <b>${escapeHtml(d.lastCommit.message)}</b> — ${escapeHtml(d.lastCommit.author)}, ${escapeHtml(d.lastCommit.relativeTime)}</div>`;
+          }
+          if (d.files.length === 0) {
+            html += '<div style="color:var(--text-faint,#6b7688); margin-bottom:8px;">変更はありません</div>';
+          } else {
+            html +=
+              '<div class="files">' +
+              d.files
+                .map(
+                  (f) =>
+                    `<div class="file"><input type="checkbox" data-file="${escapeHtml(f.path)}" ${sel.has(f.path) ? "checked" : ""} /><span class="st ${statusClass(f.status)}">${escapeHtml(f.status.trim() || "?")}</span><span class="path">${escapeHtml(f.path)}</span></div>`
+                )
+                .join("") +
+              "</div>" +
+              '<textarea class="msg" placeholder="コミットメッセージ…"></textarea>';
+          }
+          html += `<div class="actions">
+            <button data-fetch>フェッチ</button>
+            ${d.ahead ? '<button class="danger" data-push>プッシュ↑' + d.ahead + "</button>" : ""}
+            <button data-rebase>pull --rebase</button>
+            ${rebaseFailed.has(path) ? '<button class="danger" data-abort>リベースを中止</button>' : ""}
+            <button data-log>履歴を更新</button>
+            ${d.files.length > 0 ? '<button class="commit-btn" data-commit>コミット</button>' : ""}
+          </div>
+          <div class="log" id="log-${escapeHtml(repo.name)}"></div>
+          <div id="conflicts-${escapeHtml(repo.name)}"></div>`;
+          el.innerHTML = html;
+
+          // ブランチ(リポジトリ)を開いたら履歴もその場で自動取得する
+          // (以前は「履歴」ボタンを押すまで取得しなかった)。
+          loadHistory(path, repo);
+          el.querySelector("[data-log]").onclick = () => loadHistory(path, repo);
+          if (rebaseFailed.has(path)) loadConflicts(path, repo);
+
+          el.querySelectorAll("[data-file]").forEach((cb) => {
+            cb.onchange = () => {
+              if (cb.checked) sel.add(cb.dataset.file);
+              else sel.delete(cb.dataset.file);
+            };
+          });
+          el.querySelector("[data-fetch]").onclick = () => doFetch(path);
+          const pushBtn = el.querySelector("[data-push]");
+          if (pushBtn) {
+            pushBtn.onclick = () =>
+              confirmModal("プッシュしますか?", `<code>${escapeHtml(repo.branch)}</code> をリモートへpushします。`, "プッシュ", () => {
+                window.localhub
+                  .call("git.push", { path })
+                  .then((r) => {
+                    repo.ahead = r.ahead;
+                    repo.behind = r.behind;
+                    showResult(el, true, "プッシュしました");
+                    loadDetail(path);
+                  })
+                  .catch((err) => showResult(el, false, String(err)));
+              });
+          }
+          el.querySelector("[data-rebase]").onclick = () =>
+            confirmModal("pull --rebaseを実行しますか?", "フェッチしてローカルコミットをリベースします。コンフリクトが起きた場合は手動解決が必要です。", "実行", () => {
+              window.localhub
+                .call("git.pullRebase", { path })
+                .then((r) => {
+                  rebaseFailed.delete(path);
+                  repo.ahead = r.ahead;
+                  repo.behind = r.behind;
+                  showResult(el, true, "リベースしました");
+                  loadDetail(path);
+                })
+                .catch((err) => {
+                  rebaseFailed.add(path);
+                  showResult(el, false, String(err));
+                  loadDetail(path);
+                });
+            });
+          const abortBtn = el.querySelector("[data-abort]");
+          if (abortBtn) {
+            abortBtn.onclick = () =>
+              window.localhub
+                .call("git.abortRebase", { path })
+                .then(() => {
+                  rebaseFailed.delete(path);
+                  showResult(el, true, "リベースを中止しました");
+                  loadDetail(path);
+                })
+                .catch((err) => showResult(el, false, String(err)));
+          }
+          const commitBtn = el.querySelector("[data-commit]");
+          if (commitBtn) {
+            commitBtn.onclick = () => {
+              const files = [...sel];
+              const message = el.querySelector(".msg").value.trim();
+              if (files.length === 0) {
+                showResult(el, false, "コミットするファイルを選択してください");
+                return;
+              }
+              if (!message) {
+                showResult(el, false, "コミットメッセージを入力してください");
+                return;
+              }
+              window.localhub
+                .call("git.commit", { path, files, message })
+                .then(() => {
+                  selectedFiles.set(path, new Set());
+                  showResult(el, true, "コミットしました");
+                  // loadDetail内でupdateSummaryInPlace()により一覧側のバッジも
+                  // 同期されるため、ここで別途scan()を呼ぶ必要はない
+                  // (以前はscan()も呼んでいたが、非同期の解決順序次第で詳細
+                  // パネルが「読み込み中…」のまま固まる競合状態があった)。
+                  loadDetail(path);
+                })
+                .catch((err) => showResult(el, false, String(err)));
+            };
+          }
+        })
+        .catch((err) => {
+          const el = detailEl(repo);
+          if (el) el.innerHTML = `<span style="color:var(--danger,#f87171);">${escapeHtml(String(err))}</span>`;
+        });
+    }
+
+    const resolvedFiles = new Map(); // path -> Set<file>
+
+    function loadConflicts(path, repo) {
+      const el = document.getElementById(`conflicts-${escapeHtml(repo.name)}`);
+      if (!el) return;
+      if (!resolvedFiles.has(path)) resolvedFiles.set(path, new Set());
+      const resolved = resolvedFiles.get(path);
+
+      window.localhub
+        .call("git.listConflicts", { path })
+        .then((files) => {
+          if (files.length === 0) {
+            el.innerHTML = "";
+            return;
+          }
+          const allResolved = files.every((f) => resolved.has(f));
+          el.innerHTML = `<div class="conflicts">
+            <div class="title">⚠ コンフリクト中(${files.length}件) — 手動で修正してください</div>
+            ${files
+              .map(
+                (f) =>
+                  `<div class="cfile${resolved.has(f) ? " resolved" : ""}"><span class="path" title="${escapeHtml(f)}">${escapeHtml(f)}</span><button data-open="${escapeHtml(f)}">エディタで開く</button><button data-resolve="${escapeHtml(f)}">${resolved.has(f) ? "解決済み✓" : "解決済みにする"}</button></div>`
+              )
+              .join("")}
+            <button class="cont-btn" data-continue ${allResolved ? "" : "disabled"}>リベースを続行</button>
+          </div>`;
+
+          el.querySelectorAll("[data-open]").forEach((btn) => {
+            btn.onclick = () => window.localhub.openPath(`${path}\\${btn.dataset.open}`).catch((err) => (errorEl.textContent = String(err)));
+          });
+          el.querySelectorAll("[data-resolve]").forEach((btn) => {
+            btn.onclick = () => {
+              const file = btn.dataset.resolve;
+              window.localhub
+                .call("git.markResolved", { path, file })
+                .then(() => {
+                  resolved.add(file);
+                  loadConflicts(path, repo);
+                })
+                .catch((err) => (errorEl.textContent = String(err)));
+            };
+          });
+          const contBtn = el.querySelector("[data-continue]");
+          if (contBtn) {
+            contBtn.onclick = () =>
+              window.localhub
+                .call("git.continueRebase", { path })
+                .then((r) => {
+                  rebaseFailed.delete(path);
+                  resolvedFiles.delete(path);
+                  const repoObj = repos.find((x) => x.path === path);
+                  if (repoObj) {
+                    repoObj.ahead = r.ahead;
+                    repoObj.behind = r.behind;
+                  }
+                  el.innerHTML = "";
+                  loadDetail(path);
+                })
+                .catch((err) => (errorEl.textContent = String(err)));
+          }
+        })
+        .catch((err) => (errorEl.textContent = String(err)));
+    }
+
+    function loadHistory(path, repo) {
+      const logEl = document.getElementById(`log-${escapeHtml(repo.name)}`);
+      if (!logEl) return;
+      logEl.textContent = "読み込み中…";
+      window.localhub
+        .call("git.log", { path, limit: 20 })
+        .then((commits) => {
+          if (commits.length === 0) {
+            logEl.innerHTML = '<div style="color:var(--text-faint,#6b7688);">コミットがありません</div>';
+            return;
+          }
+          logEl.innerHTML = commits
+            .map(
+              (c) =>
+                `<div class="commit" data-hash="${escapeHtml(c.hash)}"><span class="hash">${escapeHtml(c.hash)}</span><span class="msg" title="${escapeHtml(c.message)}">${escapeHtml(c.message)}</span><span class="meta">${escapeHtml(c.author)}, ${escapeHtml(c.relativeTime)}</span></div><div id="commit-detail-${escapeHtml(repo.name)}-${escapeHtml(c.hash)}"></div>`
+            )
+            .join("");
+          logEl.querySelectorAll(".commit").forEach((row) => {
+            row.onclick = () => toggleCommitDetail(path, repo, row.dataset.hash);
+          });
+        })
+        .catch((err) => (logEl.textContent = String(err)));
+    }
+
+    function toggleCommitDetail(path, repo, hash) {
+      const el = document.getElementById(`commit-detail-${escapeHtml(repo.name)}-${escapeHtml(hash)}`);
+      if (!el) return;
+      if (el.innerHTML !== "") {
+        el.innerHTML = "";
+        return;
+      }
+      el.innerHTML = '<div class="commit-detail">読み込み中…</div>';
+      window.localhub
+        .call("git.showCommit", { path, hash })
+        .then((d) => {
+          let html = `<div class="commit-detail">`;
+          if (d.body) html += `<div class="body">${escapeHtml(d.body)}</div>`;
+          html += `<div class="meta">${escapeHtml(d.author)} · ${escapeHtml(d.date)} · <span style="font-family:var(--font-mono,monospace);">${escapeHtml(d.hash.slice(0, 10))}</span></div>`;
+          html += d.files
+            .map(
+              (f) =>
+                `<div class="file"><span class="st ${statusClass(f.status)}">${escapeHtml(f.status[0] || "?")}</span><span class="path" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</span><button data-open="${escapeHtml(f.path)}">エディタで開く</button></div>`
+            )
+            .join("");
+          html += "</div>";
+          el.innerHTML = html;
+          el.querySelectorAll("[data-open]").forEach((btn) => {
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              window.localhub.openPath(`${path}\\${btn.dataset.open}`).catch((err) => (errorEl.textContent = String(err)));
+            };
+          });
+        })
+        .catch((err) => (el.innerHTML = `<div class="commit-detail" style="color:var(--danger,#f87171);">${escapeHtml(String(err))}</div>`));
+    }
+
+    function doFetch(path) {
+      window.localhub
+        .call("git.fetch", { path })
+        .then((r) => {
+          const repo = repos.find((x) => x.path === path);
+          if (repo) {
+            repo.ahead = r.ahead;
+            repo.behind = r.behind;
+          }
+          renderList();
+          if (expanded === path) loadDetail(path);
+        })
+        .catch((err) => (errorEl.textContent = String(err)));
+    }
+
+    function scan(path) {
+      if (!path) return;
+      scanBtn.disabled = true;
+      errorEl.textContent = "";
+      window.localhub
+        .call("git.scan", { path })
+        .then((r) => {
+          repos = r;
+          renderList();
+        })
+        .catch((err) => (errorEl.textContent = String(err)))
+        .finally(() => (scanBtn.disabled = false));
+    }
+
+    pickBtn.onclick = () => {
+      window.localhub.pickFolder().then((dir) => {
+        if (dir) {
+          pathEl.value = dir;
+          scan(dir);
+        }
+      });
+    };
+    scanBtn.onclick = () => scan(pathEl.value.trim());
+    pathEl.addEventListener("keydown", (e) => e.key === "Enter" && scan(pathEl.value.trim()));
+    fetchAllBtn.onclick = () => {
+      errorEl.textContent = "";
+      Promise.allSettled(repos.map((r) => window.localhub.call("git.fetch", { path: r.path }).then((res) => ({ path: r.path, res })))).then((results) => {
+        results.forEach((r) => {
+          if (r.status === "fulfilled") {
+            const repo = repos.find((x) => x.path === r.value.path);
+            if (repo) {
+              repo.ahead = r.value.res.ahead;
+              repo.behind = r.value.res.behind;
+            }
+          }
+        });
+        renderList();
+      });
+    };
+
+    window.localhub.call("git.getPath").then((r) => {
+      if (r.path) {
+        pathEl.value = r.path;
+        scan(r.path);
+      }
+    });
+  </script>
+</body>
+</html>

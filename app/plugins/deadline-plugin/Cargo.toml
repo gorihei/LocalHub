@@ -1,0 +1,13 @@
+[package]
+name = "deadline-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "締め切り・カウントダウンを管理するプラグイン"
+
+[[bin]]
+name = "deadline-plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,82 @@
+{
+  "id": "com.gorihei.env-viewer-plugin",
+  "name": "環境変数/PATHビューア",
+  "version": "0.2.0",
+  "apiVersion": "1",
+  "entry": "target/debug/env-viewer-plugin.exe",
+  "description": "Windowsの環境変数・PATHを一覧表示・編集します(ユーザースコープのみ)",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["system:read", "system:write"],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [],
+    "commands": [
+      {
+        "id": "env.listEnv",
+        "method": "list_env",
+        "title": "環境変数: 一覧取得",
+        "description": "すべての環境変数を返します",
+        "riskLevel": 0,
+        "requiresPermission": "system:read"
+      },
+      {
+        "id": "env.pathEntries",
+        "method": "path_entries",
+        "title": "PATH: エントリ一覧取得",
+        "description": "PATH環境変数を;区切りで分解し、存在確認・重複検出をして返します",
+        "riskLevel": 0,
+        "requiresPermission": "system:read"
+      },
+      {
+        "id": "env.listUserRegistryEnv",
+        "method": "list_user_registry_env",
+        "title": "ユーザー環境変数: 一覧取得",
+        "description": "レジストリ(HKCU\\Environment)から直接読み取ったユーザー環境変数を返します",
+        "riskLevel": 0,
+        "requiresPermission": "system:read"
+      },
+      {
+        "id": "env.getUserPath",
+        "method": "get_user_path",
+        "title": "PATH: 現在の値を取得(編集用)",
+        "description": "レジストリ上のユーザーPATHの生の値を返します",
+        "riskLevel": 0,
+        "requiresPermission": "system:read"
+      },
+      {
+        "id": "env.setUserPath",
+        "method": "set_user_path",
+        "title": "PATH: 書き換え",
+        "description": "ユーザーPATHを書き換えます(paramsに{\"value\": \"C:\\\\a;C:\\\\b\"}が必要)。反映には再ログインが必要な場合があります",
+        "riskLevel": 2,
+        "requiresPermission": "system:write"
+      },
+      {
+        "id": "env.setUserEnv",
+        "method": "set_user_env",
+        "title": "環境変数: 追加/変更",
+        "description": "ユーザー環境変数を追加または上書きします(paramsに{\"name\": \"...\", \"value\": \"...\"}が必要)",
+        "riskLevel": 2,
+        "requiresPermission": "system:write"
+      },
+      {
+        "id": "env.deleteUserEnv",
+        "method": "delete_user_env",
+        "title": "環境変数: 削除",
+        "description": "ユーザー環境変数を削除します(paramsに{\"name\": \"...\"}が必要、PATH自体は削除不可)",
+        "riskLevel": 2,
+        "requiresPermission": "system:write"
+      }
+    ],
+    "pages": [
+      {
+        "id": "env.main",
+        "title": "環境変数/PATHビューア",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

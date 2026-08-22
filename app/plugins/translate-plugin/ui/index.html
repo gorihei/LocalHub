@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script src="/__bridge.js"></script>
+<style>
+body{margin:0;padding:12px}.toolbar,.actions{display:flex;gap:8px;align-items:center}.toolbar select{flex:1}textarea{width:100%;min-height:105px;resize:vertical;box-sizing:border-box;margin-top:10px}.result{min-height:90px;white-space:pre-wrap;border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px}.actions{justify-content:flex-end;margin-top:8px}.status{margin-right:auto;font-size:11px;color:var(--text-faint)}.error{color:#ff6b6b;font-size:12px;margin-top:8px}
+</style></head><body>
+<div class="toolbar"><select id="source"><option value="">自動検出</option><option value="JA">日本語</option><option value="EN">英語</option><option value="DE">ドイツ語</option><option value="FR">フランス語</option><option value="ES">スペイン語</option><option value="KO">韓国語</option><option value="ZH">中国語</option></select><button id="swap" title="言語を入れ替え">⇄</button><select id="target"><option value="JA">日本語</option><option value="EN">英語</option><option value="DE">ドイツ語</option><option value="FR">フランス語</option><option value="ES">スペイン語</option><option value="KO">韓国語</option><option value="ZH">中国語</option></select></div>
+<textarea id="input" placeholder="翻訳したい文章を入力…"></textarea><div class="actions"><span class="status" id="count">0文字</span><button id="clear">クリア</button><button id="translate">翻訳する Ctrl+Enter</button></div>
+<div class="result" id="result">翻訳結果がここに表示されます</div><div class="actions"><span class="status" id="detected"></span><button id="copy">コピー</button></div><div class="error" id="error"></div>
+<script>
+const input=document.getElementById('input'),result=document.getElementById('result'),error=document.getElementById('error'),button=document.getElementById('translate'),source=document.getElementById('source'),target=document.getElementById('target');
+let debounceTimer=null,requestGeneration=0;
+window.localhub.getSettings().then(items=>{const setting=items.find(x=>x.id==='target-language');if(setting&&setting.value)target.value=setting.value}).catch(()=>{});
+function scheduleTranslation(){clearTimeout(debounceTimer);const text=input.value.trim();if(!text){requestGeneration++;result.textContent='翻訳結果がここに表示されます';error.textContent='';return}debounceTimer=setTimeout(translate,1000)}
+input.oninput=()=>{document.getElementById('count').textContent=[...input.value].length+'文字';scheduleTranslation()};
+async function translate(){clearTimeout(debounceTimer);error.textContent='';if(!input.value.trim())return;const generation=++requestGeneration;button.disabled=true;result.textContent='翻訳中…';try{const r=await window.localhub.call('translate.execute',{text:input.value,sourceLang:source.value||null,targetLang:target.value});if(generation!==requestGeneration)return;result.textContent=r.translatedText;document.getElementById('detected').textContent=r.detectedSourceLanguage?'検出: '+r.detectedSourceLanguage:''}catch(e){if(generation!==requestGeneration)return;result.textContent='';error.textContent=String(e).replace('Error: ','')}finally{if(generation===requestGeneration)button.disabled=false}}
+button.onclick=translate;input.onkeydown=e=>{if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();translate()}};
+source.onchange=scheduleTranslation;target.onchange=scheduleTranslation;
+document.getElementById('swap').onclick=()=>{if(!source.value)return;const s=source.value;source.value=target.value;target.value=s;scheduleTranslation()};
+document.getElementById('clear').onclick=()=>{input.value='';result.textContent='翻訳結果がここに表示されます';error.textContent='';input.oninput()};
+document.getElementById('copy').onclick=()=>window.localhub.copyText(result.textContent).catch(()=>{error.textContent='クリップボードへコピーできませんでした'});
+</script></body></html>

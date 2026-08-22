@@ -1,0 +1,18 @@
+[package]
+name = "weather-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "APIキー不要のOpen-Meteoで天気を表示するプラグイン"
+
+[[bin]]
+name = "weather-plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# APIキー不要のOpen-Meteoへhttps GETするための最小限のHTTPクライアント。
+# reqwestより軽量。TLSはrustls(純Rust実装)を使うfeatureを指定し、
+# OpenSSL等の外部ネイティブライブラリへの依存を避ける
+# (このマシンはリンカー周りで既に一度ハマっているため、余計な依存は増やさない)。
+ureq = { version = "2", default-features = false, features = ["tls"] }

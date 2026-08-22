@@ -1,0 +1,13 @@
+[package]
+name = "todo-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "ローカル保存のシンプルなToDoリスト管理プラグイン"
+
+[[bin]]
+name = "todo-plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

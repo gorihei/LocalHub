@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>天気</title>
+<style>
+  html, body { height: 100%; }
+  body { padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+
+  .composer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface-raised, #172033);
+    border: 1px solid var(--border, #2a3443);
+    border-radius: 999px;
+    padding: 4px 4px 4px 14px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+  .composer input { flex: 1; background: none; border: none; padding: 6px 0; font-size: 12px; color: var(--text, #f3f4f6); outline: none; min-width: 0; }
+  .round-btn {
+    width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); color: #0b0f14; font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: transform 120ms ease;
+  }
+  .round-btn:hover { transform: scale(1.08); }
+
+  .error { color: var(--danger, #f87171); font-size: 11.5px; margin-bottom: 8px; flex-shrink: 0; }
+
+  .results { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; flex: 1; min-height: 0; }
+  .result-row { padding: 7px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: background 150ms ease; }
+  .result-row:hover { background: var(--surface-raised, #172033); }
+  .result-row .sub { font-size: 10.5px; color: var(--text-faint, #6b7688); }
+
+  .weather { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 0; }
+  .weather .emoji { font-size: 40px; line-height: 1; }
+  .weather .temp { font-size: 32px; font-weight: 800; background: linear-gradient(90deg, var(--accent, #22d3ee), var(--accent-strong, #67e8f9)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .weather .desc { font-size: 12.5px; color: var(--text-muted, #9ca3af); }
+  .weather .place { font-size: 11px; color: var(--text-faint, #6b7688); }
+  .weather .stats { display: flex; gap: 14px; margin-top: 6px; font-size: 11px; color: var(--text-faint, #6b7688); }
+  .weather .change { margin-top: 8px; background: none; border: none; color: var(--accent, #22d3ee); font-size: 11px; cursor: pointer; text-decoration: underline; }
+
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-faint, #6b7688); font-size: 12px; }
+  .empty .emoji { font-size: 26px; opacity: .8; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="/__bridge.js"></script>
+  <script>
+    const root = document.getElementById("root");
+
+    const WEATHER_CODES = {
+      0: ["☀️", "快晴"], 1: ["🌤️", "晴れ"], 2: ["⛅", "薄曇り"], 3: ["☁️", "曇り"],
+      45: ["🌫️", "霧"], 48: ["🌫️", "霧氷"],
+      51: ["🌦️", "弱い霧雨"], 53: ["🌦️", "霧雨"], 55: ["🌦️", "強い霧雨"],
+      56: ["🌧️", "着氷性霧雨"], 57: ["🌧️", "着氷性霧雨"],
+      61: ["🌧️", "弱い雨"], 63: ["🌧️", "雨"], 65: ["🌧️", "強い雨"],
+      66: ["🌧️", "着氷性の雨"], 67: ["🌧️", "着氷性の雨"],
+      71: ["❄️", "弱い雪"], 73: ["❄️", "雪"], 75: ["❄️", "強い雪"], 77: ["❄️", "霧雪"],
+      80: ["🌦️", "にわか雨"], 81: ["🌦️", "にわか雨"], 82: ["🌦️", "激しいにわか雨"],
+      85: ["🌨️", "にわか雪"], 86: ["🌨️", "にわか雪"],
+      95: ["⛈️", "雷雨"], 96: ["⛈️", "雷雨(雹)"], 99: ["⛈️", "雷雨(雹)"],
+    };
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function renderSearch(errorText) {
+      root.innerHTML = `
+        <div class="composer">
+          <input type="text" id="query" placeholder="地名で検索(例: 東京)…" />
+          <button class="round-btn" id="search">→</button>
+        </div>
+        ${errorText ? `<div class="error">${escapeHtml(errorText)}</div>` : ""}
+        <div class="results" id="results"></div>
+      `;
+      const queryEl = document.getElementById("query");
+      const resultsEl = document.getElementById("results");
+
+      const doSearch = () => {
+        const q = queryEl.value.trim();
+        if (!q) return;
+        window.localhub
+          .call("weather.searchLocation", { query: q })
+          .then((results) => {
+            if (results.length === 0) {
+              resultsEl.innerHTML = '<div class="empty"><span class="emoji">🔍</span>見つかりませんでした</div>';
+              return;
+            }
+            resultsEl.innerHTML = results
+              .map(
+                (r, i) =>
+                  `<div class="result-row" data-i="${i}"><div>${escapeHtml(r.name)}</div><div class="sub">${escapeHtml([r.admin1, r.country].filter(Boolean).join(" / "))}</div></div>`
+              )
+              .join("");
+            resultsEl.querySelectorAll(".result-row").forEach((el) => {
+              el.onclick = () => {
+                const r = results[Number(el.dataset.i)];
+                window.localhub
+                  .call("weather.setLocation", { name: r.name, admin1: r.admin1 || "", country: r.country || "", latitude: r.latitude, longitude: r.longitude })
+                  .then(loadWeather);
+              };
+            });
+          })
+          .catch((err) => (resultsEl.innerHTML = `<div class="error">${escapeHtml(String(err))}</div>`));
+      };
+      document.getElementById("search").onclick = doSearch;
+      queryEl.addEventListener("keydown", (e) => e.key === "Enter" && doSearch());
+    }
+
+    function renderWeather(w) {
+      const [emoji, desc] = WEATHER_CODES[w.weatherCode] || ["🌡️", "不明"];
+      const place = [w.location.name, w.location.admin1].filter(Boolean).join(", ");
+      root.innerHTML = `
+        <div class="weather">
+          <div class="emoji">${emoji}</div>
+          <div class="temp">${Math.round(w.temperature)}°C</div>
+          <div class="desc">${desc}</div>
+          <div class="place">${escapeHtml(place)}</div>
+          <div class="stats"><span>湿度 ${w.humidity}%</span><span>風速 ${w.windSpeed}m/s</span></div>
+          <button class="change" id="change">地点を変更</button>
+        </div>
+      `;
+      document.getElementById("change").onclick = () => renderSearch();
+    }
+
+    function loadWeather() {
+      window.localhub
+        .call("weather.getWeather")
+        .then(renderWeather)
+        .catch((err) => renderSearch(String(err)));
+    }
+
+    window.localhub.call("weather.getLocation").then((loc) => {
+      if (loc) loadWeather();
+      else renderSearch();
+    });
+  </script>
+</body>
+</html>

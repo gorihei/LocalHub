@@ -1,0 +1,62 @@
+{
+  "id": "com.gorihei.translate-plugin",
+  "name": "翻訳",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/translate-plugin.exe",
+  "description": "DeepL API Freeで文章を翻訳します",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["network"],
+  "autoStart": true,
+  "contributes": {
+    "settings": [
+      {
+        "id": "deepl-api-key",
+        "type": "secret",
+        "title": "DeepL APIキー",
+        "description": "DeepL API Freeの認証キー。Windows資格情報マネージャーへ保存します"
+      },
+      {
+        "id": "target-language",
+        "type": "select",
+        "title": "既定の翻訳先言語",
+        "default": "JA",
+        "options": [
+          { "value": "JA", "label": "日本語" },
+          { "value": "EN", "label": "英語" },
+          { "value": "DE", "label": "ドイツ語" },
+          { "value": "FR", "label": "フランス語" },
+          { "value": "ES", "label": "スペイン語" },
+          { "value": "KO", "label": "韓国語" },
+          { "value": "ZH", "label": "中国語" }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "id": "translate.execute",
+        "method": "translate",
+        "title": "翻訳する",
+        "description": "指定された文章をDeepL API Freeで翻訳します",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "translate.testConnection",
+        "method": "test_connection",
+        "title": "DeepL接続確認",
+        "description": "保存済みAPIキーでDeepL APIへ接続できるか確認します",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      }
+    ],
+    "pages": [
+      { "id": "translate.main", "title": "翻訳", "entry": "ui/index.html" }
+    ],
+    "widgets": [],
+    "searchProviders": [],
+    "automation": {}
+  }
+}
+

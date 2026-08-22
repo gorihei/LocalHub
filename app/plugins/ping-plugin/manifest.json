@@ -1,0 +1,49 @@
+{
+  "id": "com.gorihei.ping-plugin",
+  "name": "ネットワーク疎通確認",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/ping-plugin.exe",
+  "description": "指定ホスト:ポートへのTCP接続確認(簡易ping)を行います",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["network"],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [
+      {
+        "id": "ping.summary",
+        "title": "ネットワーク疎通",
+        "command": "plugin.com.gorihei.ping-plugin.ping.summary",
+        "refreshMs": 15000
+      }
+    ],
+    "commands": [
+      {
+        "id": "ping.check",
+        "method": "check",
+        "title": "疎通確認: ホストへ接続確認",
+        "description": "指定ホストへTCP接続を試みます(paramsに{\"host\": \"...\", \"port\": 443, \"timeoutMs\": 2000}、port/timeoutMsは省略可)",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "ping.summary",
+        "method": "summary",
+        "title": "疎通確認: サマリー",
+        "description": "既知の代表的ホスト(1.1.1.1, 8.8.8.8)への疎通状況を返します(ウィジェット用)",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      }
+    ],
+    "pages": [
+      {
+        "id": "ping.main",
+        "title": "ネットワーク疎通確認",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "com.gorihei.folder-size-plugin",
+  "name": "フォルダサイズ集計",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/folder-size-plugin.exe",
+  "description": "指定フォルダ直下の容量内訳を大きい順に集計します(何が容量を食っているか調べる用)",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["filesystem:read"],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [],
+    "commands": [
+      {
+        "id": "size.scan",
+        "method": "scan",
+        "title": "フォルダサイズ: 集計",
+        "description": "指定フォルダ直下の項目をサイズの大きい順に集計します(paramsに{\"path\": \"C:\\\\...\", \"topN\": 15}が必要、topNは省略可)",
+        "riskLevel": 0,
+        "requiresPermission": "filesystem:read"
+      }
+    ],
+    "pages": [
+      {
+        "id": "size.main",
+        "title": "フォルダサイズ集計",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

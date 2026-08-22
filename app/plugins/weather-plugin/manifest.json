@@ -1,0 +1,56 @@
+{
+  "id": "com.gorihei.weather-plugin",
+  "name": "天気",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "entry": "target/debug/weather-plugin.exe",
+  "description": "APIキー不要のOpen-Meteoで指定地点の現在の天気を表示します",
+  "author": "gorihei",
+  "trust": "local-dev",
+  "permissions": ["network"],
+  "autoStart": true,
+  "contributes": {
+    "widgets": [],
+    "commands": [
+      {
+        "id": "weather.searchLocation",
+        "method": "search_location",
+        "title": "天気: 地点検索",
+        "description": "地名から候補地点を検索します(paramsに{\"query\": \"東京\"}が必要)",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      },
+      {
+        "id": "weather.setLocation",
+        "method": "set_location",
+        "title": "天気: 地点を設定",
+        "description": "既定の地点を保存します",
+        "riskLevel": 0
+      },
+      {
+        "id": "weather.getLocation",
+        "method": "get_location",
+        "title": "天気: 設定済み地点を取得",
+        "description": "現在設定されている地点を返します",
+        "riskLevel": 0
+      },
+      {
+        "id": "weather.getWeather",
+        "method": "get_weather",
+        "title": "天気: 現在の天気を取得",
+        "description": "設定済みの地点の現在の気温・天気・風速を返します",
+        "riskLevel": 0,
+        "requiresPermission": "network"
+      }
+    ],
+    "pages": [
+      {
+        "id": "weather.main",
+        "title": "天気",
+        "entry": "ui/index.html"
+      }
+    ],
+    "searchProviders": [],
+    "automation": {}
+  }
+}

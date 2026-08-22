@@ -1,0 +1,360 @@
+/* アプリシェル(§5.1)のレイアウト。design/のHTMLモックのCSSをReact構成に
+   合わせて移植したもの。 */
+
+.shell {
+  /* 100vhは実ウィンドウの物理サイズ(zoomの影響を受けない)を基準にするため、
+     bodyのzoom(§8.5フォントサイズ設定)と噛み合わず表示が崩れる原因になって
+     いた。html/body/#rootの height:100% 連鎖から継承させることで、zoomされた
+     座標系の中で一貫したサイズになるようにする。 */
+  height: 100%;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 36px 1fr 26px;
+  grid-template-areas:
+    "topbar topbar"
+    "sidebar main"
+    "statusbar statusbar";
+  transition: grid-template-columns var(--transition);
+}
+
+.shell.nav-collapsed {
+  --sidebar-w: 64px;
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* OSの装飾(decorations)を切っている(§5.1「VSCode風にヘッダーのみにしたい」)ため、
+   タイトルバー相当の領域はこのヘッダー全体がdata-tauri-drag-regionとなる。
+   window-controlsだけ内側で-webkit-app-region:no-dragに戻し、ボタンクリックを
+   ドラッグ扱いにしない。 */
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(var(--sidebar-w) - 24px);
+  flex-shrink: 0;
+  transition: width var(--transition);
+}
+
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--accent), var(--violet));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-mark svg {
+  width: 13px;
+  height: 13px;
+}
+
+.brand-name {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.shell.nav-collapsed .brand-name {
+  display: none;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.icon-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.topbar .icon-btn {
+  width: 26px;
+  height: 26px;
+}
+
+.topbar .icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.search-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  height: 28px;
+  padding: 0 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.search-bar:hover {
+  border-color: #374254;
+}
+
+.search-bar svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+}
+
+.search-bar span {
+  flex: 1;
+  font-size: 13px;
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ---------- window controls(decorations:falseに伴うカスタムタイトルバー) ---------- */
+.window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls button {
+  width: 44px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.window-controls button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.window-controls button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.window-controls button.close:hover {
+  background: var(--danger);
+  color: #2a0a0a;
+}
+
+.btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--surface-hover);
+  border-color: #374254;
+}
+
+.btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  overflow: hidden;
+}
+
+body.density-compact .sidebar {
+  padding: 5px 4px;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+body.density-compact .nav-item {
+  height: 30px;
+}
+
+.nav-item svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.nav-item .label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shell.nav-collapsed .nav-item .label {
+  display: none;
+}
+
+.shell.nav-collapsed .nav-item {
+  justify-content: center;
+}
+
+.nav-item .soon {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.shell.nav-collapsed .nav-item .soon {
+  display: none;
+}
+
+/* ---------- main ---------- */
+.main {
+  grid-area: main;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ---------- status bar ---------- */
+.statusbar {
+  grid-area: statusbar;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 14px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.status-item.err {
+  color: var(--danger);
+}
+
+.status-item.err .status-dot {
+  background: var(--danger);
+}
+
+.statusbar .spacer {
+  flex: 1;
+}

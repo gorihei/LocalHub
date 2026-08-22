@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>スタートアップ管理</title>
+<style>
+  html, body { height: 100%; }
+  body { padding: 12px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
+
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+  .note { font-size: 10.5px; color: var(--text-faint, #6b7688); }
+  .round-btn {
+    width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; border: none;
+    background: var(--surface-hover, #1c2740); color: var(--text, #f3f4f6); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: transform 120ms ease, background 120ms ease;
+  }
+  .round-btn:hover { transform: scale(1.08); background: var(--border, #2a3443); }
+
+  .error { color: var(--danger, #f87171); font-size: 11.5px; margin-bottom: 8px; flex-shrink: 0; }
+
+  .list { flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 4px; }
+  .group-title { font-size: 10.5px; color: var(--text-faint, #6b7688); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .group-title:first-child { margin-top: 0; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; transition: background 150ms ease; }
+  .row:hover { background: var(--surface-raised, #172033); }
+  .row:hover .del { opacity: 1; }
+  .row .name { flex-shrink: 0; width: 150px; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .value { flex: 1; font-size: 11px; font-family: var(--font-mono, monospace); color: var(--text-muted, #9ca3af); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .del { opacity: 0; flex-shrink: 0; background: none; border: none; color: var(--text-faint, #6b7688); cursor: pointer; font-size: 14px; padding: 2px 4px; transition: opacity 120ms ease, color 120ms ease; }
+  .row .del:hover { color: var(--danger, #f87171); }
+
+  .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint, #6b7688); font-size: 12px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(4,6,10,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: var(--surface-raised, #172033); border: 1px solid var(--border, #2a3443); border-radius: 12px; padding: 16px; width: min(90%, 320px); }
+  .modal h4 { margin: 0 0 8px; font-size: 13px; }
+  .modal p { margin: 0 0 12px; font-size: 12px; color: var(--text-muted, #9ca3af); word-break: break-all; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal .danger { background: linear-gradient(135deg, var(--danger, #f87171), #dc2626); color: #fff; border: none; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <span class="note">削除は元に戻せません</span>
+    <button class="round-btn" id="refresh" title="更新">↻</button>
+  </div>
+  <div id="error" class="error"></div>
+  <div id="list" class="list"></div>
+  <div id="modalRoot"></div>
+
+  <script src="/__bridge.js"></script>
+  <script>
+    const listEl = document.getElementById("list");
+    const errorEl = document.getElementById("error");
+    const refreshBtn = document.getElementById("refresh");
+    const modalRoot = document.getElementById("modalRoot");
+
+    const SOURCE_LABEL = {
+      "registry-hkcu": "レジストリ(現在のユーザー)",
+      "registry-hklm": "レジストリ(全ユーザー・管理者権限が必要な場合あり)",
+      "startup-folder-user": "スタートアップフォルダ(ユーザー)",
+      "startup-folder-common": "スタートアップフォルダ(全ユーザー)",
+    };
+    const ORDER = ["registry-hkcu", "registry-hklm", "startup-folder-user", "startup-folder-common"];
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function confirmModal(title, message, onConfirm) {
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <div class="modal">
+            <h4>${escapeHtml(title)}</h4>
+            <p>${message}</p>
+            <div class="actions">
+              <button id="modalCancel">キャンセル</button>
+              <button class="danger" id="modalOk">無効化</button>
+            </div>
+          </div>
+        </div>`;
+      document.getElementById("modalCancel").onclick = () => (modalRoot.innerHTML = "");
+      document.getElementById("modalOk").onclick = () => {
+        modalRoot.innerHTML = "";
+        onConfirm();
+      };
+    }
+
+    function refresh() {
+      errorEl.textContent = "";
+      window.localhub
+        .call("startup.list")
+        .then((entries) => {
+          if (entries.length === 0) {
+            listEl.innerHTML = '<div class="empty">自動起動項目が見つかりませんでした</div>';
+            return;
+          }
+          let html = "";
+          for (const source of ORDER) {
+            const rows = entries.filter((e) => e.source === source);
+            if (rows.length === 0) continue;
+            html += `<div class="group-title">${SOURCE_LABEL[source]}(${rows.length})</div>`;
+            for (const r of rows) {
+              html += `<div class="row" data-source="${escapeHtml(source)}" data-name="${escapeHtml(r.name)}" data-value="${escapeHtml(r.value)}"><span class="name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span><span class="value" title="${escapeHtml(r.value)}">${escapeHtml(r.value)}</span><button class="del" title="無効化">×</button></div>`;
+            }
+          }
+          listEl.innerHTML = html || '<div class="empty">自動起動項目が見つかりませんでした</div>';
+          listEl.querySelectorAll(".row").forEach((row) => {
+            row.querySelector(".del").onclick = () => {
+              const source = row.dataset.source;
+              const name = row.dataset.name;
+              const value = row.dataset.value;
+              const isFolder = source.startsWith("startup-folder");
+              confirmModal(
+                "自動起動項目を無効化しますか?",
+                `<code>${escapeHtml(name)}</code>${isFolder ? "(ショートカットファイルを削除します)" : "(レジストリから削除します)"}。元に戻せません。`,
+                () => {
+                  window.localhub.call("startup.disable", { source, name, value }).then(refresh).catch((err) => (errorEl.textContent = String(err)));
+                }
+              );
+            };
+          });
+        })
+        .catch((err) => (errorEl.textContent = String(err)));
+    }
+
+    refreshBtn.onclick = refresh;
+    refresh();
+  </script>
+</body>
+</html>
