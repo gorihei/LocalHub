@@ -11,6 +11,7 @@ import HomePage from "../pages/HomePage";
 import SearchPage from "../pages/SearchPage";
 import AutomationPage from "../pages/AutomationPage";
 import PluginsPage from "../pages/PluginsPage";
+import AiCliPage from "../pages/AiCliPage";
 import DevToolsPage from "../pages/DevToolsPage";
 import ProcessesPage from "../pages/ProcessesPage";
 import SettingsPage from "../pages/SettingsPage";
@@ -22,6 +23,7 @@ const PAGES: Record<PageId, ComponentType> = {
   search: SearchPage,
   automation: AutomationPage,
   plugins: PluginsPage,
+  "ai-cli": AiCliPage,
   devtools: DevToolsPage,
   processes: ProcessesPage,
   settings: SettingsPage,
@@ -33,6 +35,11 @@ const NAV_COLLAPSED_KEY = "navCollapsed";
 export default function AppShell() {
   const [page, setPage] = useState<PageId>("home");
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const [aiCliMounted, setAiCliMounted] = useState(false);
+
+  useEffect(() => {
+    if (page === "ai-cli") setAiCliMounted(true);
+  }, [page]);
 
   // サイドバーの開閉状態を記憶する(§6.10「変更は即時反映」)。
   useEffect(() => {
@@ -115,7 +122,12 @@ export default function AppShell() {
             <span>2回連続で正常終了できなかったため、プラグインを無効化しています。次回、トレイメニューの「終了」で正しく終了すれば通常起動に戻ります。</span>
           </div>
         )}
-        <PageComponent />
+        {page !== "ai-cli" && <PageComponent />}
+        {aiCliMounted && (
+          <div style={{ height: "100%", display: page === "ai-cli" ? "block" : "none" }}>
+            <AiCliPage />
+          </div>
+        )}
       </main>
       <StatusBar pluginsRunning={0} pluginsTotal={1} errorCount={errorCount} />
       <ActivityPanel open={activityOpen} onClose={() => setActivityOpen(false)} />

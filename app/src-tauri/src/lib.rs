@@ -208,6 +208,8 @@ pub fn run() {
             global_shortcut_update,
             log_dir_path,
             pty::pty_spawn,
+            pty::ai_cli_detect,
+            pty::ai_cli_default_cwd,
             pty::pty_write,
             pty::pty_resize,
             pty::pty_close,

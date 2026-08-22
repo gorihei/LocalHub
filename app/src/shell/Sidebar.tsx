@@ -42,6 +42,16 @@ const NAV_ITEMS: { id: PageId; label: string; soon?: boolean; icon: ReactElement
     ),
   },
   {
+    id: "ai-cli",
+    label: "AI CLI",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="3" y="4" width="14" height="12" rx="2" />
+        <path d="m6.5 8 2 2-2 2M10.5 12h3" />
+      </svg>
+    ),
+  },
+  {
     id: "devtools",
     label: "開発者ツール",
     icon: (

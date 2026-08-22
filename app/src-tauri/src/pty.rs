@@ -10,10 +10,167 @@
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
+
+#[derive(Serialize)]
+pub struct AiCliInfo {
+    id: &'static str,
+    label: &'static str,
+    command: &'static str,
+    installed: bool,
+    path: Option<String>,
+    version: Option<String>,
+}
+
+fn find_on_path(command: &str) -> Option<PathBuf> {
+    let output = std::process::Command::new("where.exe")
+        .arg(command)
+        .output()
+        .ok()?;
+    output.status.success().then_some(())?;
+    let paths: Vec<PathBuf> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .collect();
+
+    // VoltaはWindowsでも拡張子なしのUnix向けshimとclaude.exeの両方を返す
+    // 場合がある。CreateProcessWは前者を実行できないため、Windowsが直接起動
+    // できる候補を優先する。
+    let (native_candidates, other_candidates): (Vec<_>, Vec<_>) = paths.into_iter().partition(|path| {
+        matches!(
+            path.extension().and_then(OsStr::to_str),
+            Some("exe" | "com" | "cmd" | "bat")
+        )
+    });
+    native_candidates
+        .into_iter()
+        .chain(other_candidates)
+        .find(|path| read_cli_version(path).is_some())
+}
+
+fn process_for_path(path: &Path) -> std::process::Command {
+    if matches!(
+        path.extension().and_then(OsStr::to_str),
+        Some("cmd" | "bat")
+    ) {
+        let mut command = std::process::Command::new("cmd.exe");
+        command.arg("/d").arg("/c").arg(path);
+        command
+    } else {
+        std::process::Command::new(path)
+    }
+}
+
+fn read_cli_version(path: &Path) -> Option<String> {
+    process_for_path(path)
+        .arg("--version")
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            stdout
+                .lines()
+                .chain(stderr.lines())
+                .find(|line| !line.trim().is_empty())
+                .map(|line| line.trim().to_string())
+        })
+}
+
+/// VS Code拡張はCodexを同梱しているが、そのbinディレクトリはVS Codeから
+/// 起動したシェルのPATHにだけ追加される。デスクトップアプリからも利用できるよう、
+/// OpenAI拡張の既知の配置を限定的に探索する。
+fn find_vscode_codex() -> Option<PathBuf> {
+    let user_profile = PathBuf::from(std::env::var_os("USERPROFILE")?);
+    let architecture_dirs: &[&str] = match std::env::consts::ARCH {
+        "aarch64" => &["windows-arm64", "windows-x86_64"],
+        _ => &["windows-x86_64"],
+    };
+    let mut candidates = Vec::new();
+
+    for extensions_dir in [
+        user_profile.join(".vscode").join("extensions"),
+        user_profile.join(".vscode-insiders").join("extensions"),
+    ] {
+        let Ok(entries) = std::fs::read_dir(extensions_dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            if !name.to_string_lossy().starts_with("openai.chatgpt-") {
+                continue;
+            }
+            for architecture_dir in architecture_dirs {
+                let candidate = entry
+                    .path()
+                    .join("bin")
+                    .join(architecture_dir)
+                    .join("codex.exe");
+                if candidate.is_file() {
+                    candidates.push(candidate);
+                }
+            }
+        }
+    }
+
+    candidates.into_iter().max_by_key(|path| {
+        path.metadata()
+            .and_then(|metadata| metadata.modified())
+            .ok()
+    })
+}
+
+fn find_native_claude() -> Option<PathBuf> {
+    let path = PathBuf::from(std::env::var_os("USERPROFILE")?)
+        .join(".local")
+        .join("bin")
+        .join("claude.exe");
+    (path.is_file() && read_cli_version(&path).is_some()).then_some(path)
+}
+
+fn resolve_ai_cli(command: &str) -> Option<PathBuf> {
+    find_on_path(command)
+        .or_else(|| (command == "codex").then(find_vscode_codex).flatten())
+        .or_else(|| (command == "claude").then(find_native_claude).flatten())
+}
+
+/// 対応するAI CLIをPATHと既知のアプリ同梱先から検出する。起動時にも同じ
+/// リゾルバーを使い、検出結果と実際に起動される実行ファイルを一致させる。
+#[tauri::command]
+pub fn ai_cli_detect() -> Vec<AiCliInfo> {
+    [
+        ("codex", "Codex CLI"),
+        ("claude", "Claude Code"),
+        ("gemini", "Gemini CLI"),
+    ]
+    .into_iter()
+    .map(|(command, label)| {
+        let resolved_path = resolve_ai_cli(command);
+        let version = resolved_path.as_deref().and_then(read_cli_version);
+        AiCliInfo {
+            id: command,
+            label,
+            command,
+            installed: resolved_path.is_some(),
+            path: resolved_path.map(|path| path.to_string_lossy().into_owned()),
+            version,
+        }
+    })
+    .collect()
+}
+
+#[tauri::command]
+pub fn ai_cli_default_cwd() -> Option<String> {
+    std::env::var("USERPROFILE").ok().filter(|path| !path.trim().is_empty())
+}
 
 /// 起動中のPTYセッション。writerとmasterの両方を保持しておかないと、
 /// masterをスコープから外した時点でConPTYが閉じてしまう。
@@ -61,7 +218,13 @@ fn find_git_bash() -> Option<PathBuf> {
 /// "powershell"(既定)/"cmd"/"gitbash"のいずれか。戻り値のsession_idを
 /// pty_write/pty_resize/pty_closeへ渡す。
 #[tauri::command]
-pub fn pty_spawn(app: AppHandle, state: State<PtyState>, cwd: Option<String>, shell: Option<String>) -> Result<String, String> {
+pub fn pty_spawn(
+    app: AppHandle,
+    state: State<PtyState>,
+    cwd: Option<String>,
+    shell: Option<String>,
+    ai_cli: Option<String>,
+) -> Result<String, String> {
     let pty_system = native_pty_system();
 
     // 24x80は初期値。実際のサイズはフロント側のfitアドオンがpty_resizeで通知する。
@@ -76,17 +239,44 @@ pub fn pty_spawn(app: AppHandle, state: State<PtyState>, cwd: Option<String>, sh
 
     // FR-CLI-001: MVP必須はPowerShellのみだが、利用者要望によりCommand Prompt/
     // Git Bashも選べるようにしている。
-    let mut cmd = match shell.as_deref() {
-        Some("cmd") => CommandBuilder::new("cmd.exe"),
-        Some("gitbash") => {
-            let bash_path = find_git_bash().ok_or("Git Bashが見つかりませんでした(標準的な場所にインストールされているか確認してください)")?;
-            let mut builder = CommandBuilder::new(bash_path);
-            builder.arg("--login");
-            builder.arg("-i");
-            builder
+    // AI CLI名は固定の許可リストで検証し、バックエンド自身が解決した実行ファイル
+    // だけを起動する。フロントエンドから任意パスをプロセス起動できるAPIにはしない。
+    let mut cmd = if let Some(ai_command) = ai_cli.as_deref() {
+        if !matches!(ai_command, "codex" | "claude" | "gemini") {
+            return Err("未対応のAI CLIです".to_string());
         }
-        _ => CommandBuilder::new("powershell.exe"),
+        let executable = resolve_ai_cli(ai_command)
+            .ok_or_else(|| format!("{ai_command}が見つかりませんでした"))?;
+        if matches!(
+            executable.extension().and_then(OsStr::to_str),
+            Some("cmd" | "bat")
+        ) {
+            let mut builder = CommandBuilder::new("cmd.exe");
+            builder.arg("/d");
+            builder.arg("/c");
+            builder.arg(executable);
+            builder
+        } else {
+            CommandBuilder::new(executable)
+        }
+    } else {
+        match shell.as_deref() {
+            Some("cmd") => CommandBuilder::new("cmd.exe"),
+            Some("gitbash") => {
+                let bash_path = find_git_bash().ok_or("Git Bashが見つかりませんでした(標準的な場所にインストールされているか確認してください)")?;
+                let mut builder = CommandBuilder::new(bash_path);
+                builder.arg("--login");
+                builder.arg("-i");
+                builder
+            }
+            _ => CommandBuilder::new("powershell.exe"),
+        }
     };
+    // `npm run tauri dev`をVolta管理のNodeから起動すると、子孫プロセスへ
+    // _VOLTA_TOOL_RECURSIONが残る。これは同じツール呼び出し内でshimの再入を
+    // 防ぐための内部状態なので、新しい対話シェルへ引き継ぐと`node`がPATH上の
+    // 古いNodeへフォールバックしてしまう。独立セッション境界で解除する。
+    cmd.env_remove("_VOLTA_TOOL_RECURSION");
     if let Some(dir) = &cwd {
         cmd.cwd(dir);
     }

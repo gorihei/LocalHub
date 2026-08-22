@@ -68,16 +68,19 @@ REQUIREMENTS.md         要件定義(正)
 4. **プラグイン** — `PluginsPage.tsx`。検出済みプラグインの一覧・起動/停止・権限許可・
    ログ表示・導入(フォルダ選択)・アンインストール。`contributes.pages`があれば
    [ADR-0003](adr/0003-plugin-webview-architecture.md)の仕組みで専用UIを埋め込み表示。
-5. **開発者ツール** — `DevToolsPage.tsx`。JSON/YAML/XML整形、テキスト変換、UUID/ハッシュ、
+5. **AI CLI** — `AiCliPage.tsx`。Codex CLI、Claude Code、Gemini CLIを検出し、選択した
+   作業フォルダーでConPTYセッションとして起動する。複数セッションの切り替え・終了・
+   稼働状態表示に対応し、別画面へ移動してもプロセスを維持する。
+6. **開発者ツール** — `DevToolsPage.tsx`。JSON/YAML/XML整形、テキスト変換、UUID/ハッシュ、
    タイムスタンプ変換、正規表現テスト、差分表示、カラー変換、JWTデコーダー、
    ダミーデータ生成、Markdownプレビュー、進数変換、URL解析、文字数カウント。
    画像背景透過は`@imgly/background-removal` + ONNX Runtime Webで端末内推論し、
    透過PNGとして保存できる。画像データは外部送信しないが、初回実行時はIMG.LY CDNから
    量子化モデル(`isnet_quint8`、約40MB)を取得する。その他のツールはブラウザ標準APIのみで
    完結し外部送信なし。
-6. **プロセス・ポート** — `ProcessesPage.tsx`。プロセス検索・CPU/メモリ表示、
+7. **プロセス・ポート** — `ProcessesPage.tsx`。プロセス検索・CPU/メモリ表示、
    `netstat -ano`によるポート対応、終了操作(確認ダイアログ付き)。
-7. **設定** — `SettingsPage.tsx`。外観(アクセントカラー6色・フォントサイズ・密度)、
+8. **設定** — `SettingsPage.tsx`。外観(アクセントカラー6色・フォントサイズ・密度)、
    一般(自動起動・閉じる動作)、ショートカット(グローバルホットキー)、
    データ(バックアップ書き出し/読み込み)、ログ。
 

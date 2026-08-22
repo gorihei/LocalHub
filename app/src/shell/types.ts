@@ -1,1 +1,1 @@
-export type PageId = "home" | "search" | "automation" | "plugins" | "devtools" | "processes" | "settings";
+export type PageId = "home" | "search" | "automation" | "plugins" | "ai-cli" | "devtools" | "processes" | "settings";

@@ -29,10 +29,12 @@ type Props = {
   shell?: ShellKind;
   fontSize?: number;
   cliTheme?: CliTheme;
+  aiCliCommand?: "codex" | "claude" | "gemini";
   onSessionReady?: (sessionId: string) => void;
+  onSessionClosed?: () => void;
 };
 
-export default function TerminalSpike({ cwd, shell = "powershell", fontSize = 14, cliTheme = "dark", onSessionReady }: Props) {
+export default function TerminalSpike({ cwd, shell = "powershell", fontSize = 14, cliTheme = "dark", aiCliCommand, onSessionReady, onSessionClosed }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -98,11 +100,12 @@ export default function TerminalSpike({ cwd, shell = "powershell", fontSize = 14
     const unlistenClosed = listen<{ session_id: string }>("pty://closed", (event) => {
       if (event.payload.session_id === sessionId) {
         term.write("\r\n\x1b[33m[プロセスが終了しました]\x1b[0m\r\n");
+        onSessionClosed?.();
       }
     });
 
     Promise.all([unlistenData, unlistenClosed])
-      .then(() => invoke<string>("pty_spawn", { cwd, shell }))
+      .then(() => invoke<string>("pty_spawn", { cwd, shell, aiCli: aiCliCommand }))
       .then((id) => {
         sessionId = id;
         sessionIdRef.current = id;
