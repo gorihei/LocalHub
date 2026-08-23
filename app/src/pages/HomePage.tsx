@@ -24,6 +24,7 @@ import LaunchSetWidget from "../shortcuts/LaunchSetWidget";
 import SystemWidget from "./SystemWidget";
 import ClockWidget from "./ClockWidget";
 import QuickNoteWidget from "./QuickNoteWidget";
+import StickyNotesWidget from "./StickyNotesWidget";
 import ClipboardWidget from "./ClipboardWidget";
 import ActivityWidget from "./ActivityWidget";
 import PluginPageFrame from "./PluginPageFrame";
@@ -46,6 +47,7 @@ const WIDGET_CATALOG = [
   { id: "plugins", title: "プラグイン状態" },
   { id: "clock", title: "時計" },
   { id: "note", title: "クイックメモ" },
+  { id: "stickyNotes", title: "付箋" },
   { id: "clipboard", title: "クリップボード履歴" },
   { id: "activity", title: "最近の通知" },
 ] as const;
@@ -169,6 +171,8 @@ function WidgetBody({ id, pluginWidgets, pluginPages }: { id: WidgetId; pluginWi
       return <ClockWidget />;
     case "note":
       return <QuickNoteWidget />;
+    case "stickyNotes":
+      return <StickyNotesWidget />;
     case "clipboard":
       return <ClipboardWidget />;
     case "activity":
@@ -370,7 +374,10 @@ export default function HomePage() {
     // なっていた。onLayoutChangeへ依存せず、既存アイテムの最下段を自前で
     // 計算して配置する。
     const nextY = layout.reduce((max, item) => Math.max(max, item.y + item.h), 0);
-    const next: Layout = [...layout, { i: id, x: 0, y: nextY, w: 4, h: 4, minW: 2, minH: 2 }];
+    const dimensions = id === "stickyNotes"
+      ? { w: 10, h: 9, minW: 5, minH: 5 }
+      : { w: 4, h: 4, minW: 2, minH: 2 };
+    const next: Layout = [...layout, { i: id, x: 0, y: nextY, ...dimensions }];
     commitLayout(next, layout);
   };
 
