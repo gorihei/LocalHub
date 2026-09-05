@@ -36,6 +36,8 @@ app/
 docs/
   adr/                 設計判断の記録(Architecture Decision Record)
   ARCHITECTURE.md       このファイル
+  SPECIFICATIONS.md     利用者から見える動作と実装契約
+  CHANGELOG.md          日付単位の実装修正履歴
 REQUIREMENTS.md         要件定義(正)
 ```
 
@@ -105,6 +107,9 @@ REQUIREMENTS.md         要件定義(正)
   サンプル一式は削除済み(実用プラグインのみを対象とする)。
 - **通信**: サイドカー実行ファイルを子プロセスとして起動し、改行区切りJSONの
   簡易JSON-RPCで標準入出力越しにやり取りする。
+- **Windowsでの起動**: GUI版コアからコンソール型サイドカーを起動しても別の
+  コンソールウィンドウが表示されないよう、コアが`CREATE_NO_WINDOW`を指定する。
+  JSON-RPC用の標準入出力とログ用の標準エラー出力はパイプで保持する。
 - **ライフサイクル**: `Installed → Starting → Running → Failed/Disabled`。短時間の
   連続クラッシュ(15秒以内に3回)で自動的に`Disabled`へ落ちる(クラッシュループ検知)。
 - **権限**: `manifest.permissions`で要求を宣言し、`contributes.commands[].requiresPermission`

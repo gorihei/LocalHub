@@ -13,6 +13,8 @@ use crate::manifest::PluginManifest;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -88,6 +90,12 @@ pub struct PluginEntry {
 const CRASH_LOOP_WINDOW_SECS: u64 = 15;
 /// 連続クラッシュがこの回数に達したら自動的に無効化する。
 const CRASH_LOOP_THRESHOLD: u64 = 3;
+
+/// GUI版Local Hubからコンソール型サイドカーを起動しても、独立した
+/// コンソールウィンドウを作らせない。標準入出力はパイプ指定しているため、
+/// JSON-RPC通信とログ収集には影響しない。
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 impl PluginEntry {
     fn new(manifest: PluginManifest, dir: PathBuf) -> Self {
@@ -406,7 +414,12 @@ pub fn plugin_start(app: AppHandle, state: State<PluginHostState>, id: String) -
         return Err(format!("サイドカー実行ファイルが見つかりません: {}", path.display()));
     }
 
-    let mut child: Child = match Command::new(&path).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+    let mut command = Command::new(&path);
+    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    let mut child: Child = match command.spawn() {
         Ok(c) => c,
         Err(e) => {
             entry.set_state(PluginState::Failed);
