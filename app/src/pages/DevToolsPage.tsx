@@ -1,10 +1,11 @@
 // §6.11 開発者ツールボックス(v1)。JSON整形・Base64・URLエンコード・
 // UUID/ハッシュ生成・タイムスタンプ変換・正規表現テスト。
-// 画像背景透過のみONNX Runtime Webを利用し、それ以外はブラウザ標準APIで完結する。
+// 画像背景透過はONNX Runtime Web、QRコード生成はqrcodeを利用する。
 // いずれも入力データを外部へ送信しない
 // (§6.11「変換は入力を暗黙に外部送信せず、ローカルで処理する」)。
 import { useEffect, useState, type CSSProperties, type ChangeEvent, type DragEvent } from "react";
 import * as yaml from "js-yaml";
+import QRCode from "qrcode";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import "./pages.css";
@@ -27,6 +28,7 @@ type ToolTab =
   | "count"
   | "password"
   | "unit"
+  | "qr"
   | "background";
 
 function CopyButton({ text }: { text: string }) {
@@ -1327,6 +1329,114 @@ function UnitTool() {
   );
 }
 
+type QrErrorCorrectionLevel = "L" | "M" | "Q" | "H";
+
+function QrCodeTool() {
+  const [input, setInput] = useState("");
+  const [size, setSize] = useState(512);
+  const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<QrErrorCorrectionLevel>("M");
+  const [dataUrl, setDataUrl] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const generate = async () => {
+    if (!input) {
+      setDataUrl("");
+      setError("QRコードにするテキストまたはURLを入力してください");
+      return;
+    }
+    try {
+      const generated = await QRCode.toDataURL(input, {
+        errorCorrectionLevel,
+        width: size,
+        margin: 4,
+        color: { dark: "#000000ff", light: "#ffffffff" },
+      });
+      setDataUrl(generated);
+      setError("");
+    } catch (cause) {
+      setDataUrl("");
+      setError(`QRコードを生成できませんでした: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  };
+
+  const download = async () => {
+    if (!dataUrl || saving) return;
+    const destination = await save({
+      defaultPath: "qrcode.png",
+      filters: [{ name: "PNG画像", extensions: ["png"] }],
+    });
+    if (!destination) return;
+
+    setSaving(true);
+    setError("");
+    try {
+      const bytes = new Uint8Array(await (await fetch(dataUrl)).arrayBuffer());
+      await writeFile(destination, bytes);
+    } catch (cause) {
+      setError(`PNGの保存に失敗しました: ${cause instanceof Error ? cause.message : String(cause)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="panel-card" style={{ padding: 14 }}>
+      <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>テキストまたはURL</label>
+      <textarea
+        style={{ ...textareaStyle, minHeight: 110 }}
+        value={input}
+        onChange={(event) => setInput(event.target.value)}
+        placeholder="https://example.com"
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "10px 0 14px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+          誤り訂正
+          <select value={errorCorrectionLevel} onChange={(event) => setErrorCorrectionLevel(event.target.value as QrErrorCorrectionLevel)}>
+            <option value="L">L（約7%）</option>
+            <option value="M">M（約15%）</option>
+            <option value="Q">Q（約25%）</option>
+            <option value="H">H（約30%）</option>
+          </select>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+          PNGサイズ
+          <select value={size} onChange={(event) => setSize(Number(event.target.value))}>
+            {[256, 512, 1024].map((value) => <option key={value} value={value}>{value}×{value}px</option>)}
+          </select>
+        </label>
+        <button className="btn primary" onClick={generate} disabled={!input}>
+          QRコードを生成
+        </button>
+      </div>
+      {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
+      <div
+        style={{
+          minHeight: 300,
+          display: "grid",
+          placeItems: "center",
+          padding: 18,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-s)",
+          background: "#fff",
+        }}
+      >
+        {dataUrl ? (
+          <img src={dataUrl} alt="生成したQRコード" style={{ width: "min(100%, 320px)", imageRendering: "pixelated" }} />
+        ) : (
+          <span style={{ color: "#707070", fontSize: 12 }}>生成したQRコードがここに表示されます</span>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+        <button className="btn" onClick={download} disabled={!dataUrl || saving}>
+          {saving ? "保存中…" : "PNGを保存"}
+        </button>
+        <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>入力内容は外部へ送信されません</span>
+      </div>
+    </div>
+  );
+}
+
 function BackgroundRemovalTool() {
   const [file, setFile] = useState<File | null>(null);
   const [inputUrl, setInputUrl] = useState("");
@@ -1538,6 +1648,9 @@ export default function DevToolsPage() {
           <button className={tab === "unit" ? "active" : ""} onClick={() => setTab("unit")}>
             単位変換
           </button>
+          <button className={tab === "qr" ? "active" : ""} onClick={() => setTab("qr")}>
+            QRコード生成
+          </button>
           <button className={tab === "background" ? "active" : ""} onClick={() => setTab("background")}>
             画像背景透過
           </button>
@@ -1559,6 +1672,7 @@ export default function DevToolsPage() {
         {tab === "count" && <TextCountTool />}
         {tab === "password" && <PasswordTool />}
         {tab === "unit" && <UnitTool />}
+        {tab === "qr" && <QrCodeTool />}
         {tab === "background" && <BackgroundRemovalTool />}
       </div>
     </div>

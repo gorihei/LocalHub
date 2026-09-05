@@ -78,10 +78,11 @@ REQUIREMENTS.md         要件定義(正)
 6. **開発者ツール** — `DevToolsPage.tsx`。JSON/YAML/XML整形、テキスト変換、UUID/ハッシュ、
    タイムスタンプ変換、正規表現テスト、差分表示、カラー変換、JWTデコーダー、
    ダミーデータ生成、Markdownプレビュー、進数変換、URL解析、文字数カウント。
+   QRコード生成は`qrcode`で端末内処理し、誤り訂正レベルとPNGサイズを指定して保存できる。
    画像背景透過は`@imgly/background-removal` + ONNX Runtime Webで端末内推論し、
    透過PNGとして保存できる。画像データは外部送信しないが、初回実行時はIMG.LY CDNから
-   量子化モデル(`isnet_quint8`、約40MB)を取得する。その他のツールはブラウザ標準APIのみで
-   完結し外部送信なし。
+   量子化モデル(`isnet_quint8`、約40MB)を取得する。QRコード生成を含むその他のツールは
+   外部送信なし。
 7. **プロセス・ポート** — `ProcessesPage.tsx`。プロセス検索・CPU/メモリ表示、
    `netstat -ano`によるポート対応、終了操作(確認ダイアログ付き)。
 8. **設定** — `SettingsPage.tsx`。外観(アクセントカラー6色・フォントサイズ・密度)、
