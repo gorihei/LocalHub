@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CopyButton, textareaStyle, type JsonValue } from "./shared";
+import { CodeEditor, CopyButton, type JsonValue } from "./shared";
 
 const REFERENCE_TIMEZONES = [
   { label: "日本(JST)", zone: "Asia/Tokyo" },
@@ -92,7 +92,7 @@ export function RegexTool() {
       </div>
       {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>テスト対象テキスト</label>
-      <textarea style={{ ...textareaStyle, minHeight: 120 }} value={text} onChange={(e) => setText(e.target.value)} />
+      <CodeEditor value={text} onChange={setText} minHeight={120} />
       <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 10 }}>{matches.length}件マッチ</div>
       {matches.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, maxHeight: 160, overflowY: "auto" }}>
@@ -116,7 +116,7 @@ export function RegexTool() {
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", margin: "14px 0 4px" }}>置換文字列（$1、$&amp;、名前付きグループを使用可能）</label>
       <input value={replacement} onChange={(e) => setReplacement(e.target.value)} style={{ width: "100%", fontFamily: "var(--font-mono)" }} />
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", margin: "10px 0 4px" }}>置換プレビュー</label>
-      <textarea style={{ ...textareaStyle, minHeight: 120 }} value={error ? "" : replacementPreview} readOnly />
+      <CodeEditor value={error ? "" : replacementPreview} minHeight={120} readOnly />
       <div style={{ marginTop: 8 }}><CopyButton text={error ? "" : replacementPreview} /></div>
     </div>
   );
@@ -215,11 +215,11 @@ export function DiffTool() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div>
           <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>変更前</label>
-          <textarea style={{ ...textareaStyle, minHeight: 140 }} value={left} onChange={(e) => setLeft(e.target.value)} />
+          <CodeEditor value={left} onChange={setLeft} minHeight={140} />
         </div>
         <div>
           <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>変更後</label>
-          <textarea style={{ ...textareaStyle, minHeight: 140 }} value={right} onChange={(e) => setRight(e.target.value)} />
+          <CodeEditor value={right} onChange={setRight} minHeight={140} />
         </div>
       </div>
       {mode === "json" && error && <div style={{ color: "var(--danger)", fontSize: 12, margin: "10px 0" }}>{error}</div>}
@@ -267,5 +267,4 @@ export function DiffTool() {
     </div>
   );
 }
-
 

@@ -1,5 +1,5 @@
 // §5.1 アプリシェル本体。ナビゲーション状態を持ち、各ページを切り替える。
-import { useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./shell.css";
 import Sidebar from "./Sidebar";
@@ -12,11 +12,12 @@ import SearchPage from "../pages/SearchPage";
 import AutomationPage from "../pages/AutomationPage";
 import PluginsPage from "../pages/PluginsPage";
 import AiCliPage from "../pages/AiCliPage";
-import DevToolsPage from "../pages/DevToolsPage";
 import ProcessesPage from "../pages/ProcessesPage";
 import SettingsPage from "../pages/SettingsPage";
 import ToastStack from "../notifications/ToastStack";
 import CommandPalette from "../search/CommandPalette";
+
+const DevToolsPage = lazy(() => import("../pages/DevToolsPage"));
 
 const PAGES: Record<PageId, ComponentType> = {
   home: HomePage,
@@ -122,7 +123,11 @@ export default function AppShell() {
             <span>2回連続で正常終了できなかったため、プラグインを無効化しています。次回、トレイメニューの「終了」で正しく終了すれば通常起動に戻ります。</span>
           </div>
         )}
-        {page !== "ai-cli" && <PageComponent />}
+        {page !== "ai-cli" && (
+          <Suspense fallback={<div className="page">画面を読み込んでいます…</div>}>
+            <PageComponent />
+          </Suspense>
+        )}
         {aiCliMounted && (
           <div style={{ height: "100%", display: page === "ai-cli" ? "block" : "none" }}>
             <AiCliPage />

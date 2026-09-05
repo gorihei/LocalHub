@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CopyButton, textareaStyle } from "./shared";
+import { CodeEditor, CopyButton } from "./shared";
 
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = hex.trim().replace(/^#/, "").match(/^([0-9a-f]{6}|[0-9a-f]{3})$/i);
@@ -96,20 +96,19 @@ export function JwtTool() {
         署名の検証は行いません(内容のデコードのみ)。入力は外部へ送信しません。
       </div>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>JWTトークン</label>
-      <textarea style={{ ...textareaStyle, minHeight: 80 }} value={token} onChange={(e) => decode(e.target.value)} placeholder="eyJhbGciOi..." />
+      <CodeEditor value={token} onChange={decode} minHeight={80} placeholder="eyJhbGciOi..." />
       {error && <div style={{ color: "var(--danger)", fontSize: 12, margin: "10px 0" }}>{error}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
         <div>
           <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>ヘッダー</label>
-          <textarea style={{ ...textareaStyle, minHeight: 120 }} value={header} readOnly />
+          <CodeEditor language="json" value={header} minHeight={120} readOnly />
         </div>
         <div>
           <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>ペイロード</label>
-          <textarea style={{ ...textareaStyle, minHeight: 120 }} value={payload} readOnly />
+          <CodeEditor language="json" value={payload} minHeight={120} readOnly />
         </div>
       </div>
     </div>
   );
 }
-
 

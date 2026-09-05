@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CopyButton, textareaStyle } from "./shared";
+import { CodeEditor, CopyButton } from "./shared";
 
 export function NumberBaseTool() {
   const [decimal, setDecimal] = useState("255");
@@ -98,7 +98,7 @@ export function UrlTool() {
 
       <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
         <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>URLエンコード/デコード</label>
-        <textarea style={{ ...textareaStyle, minHeight: 70 }} value={encodeInput} onChange={(e) => setEncodeInput(e.target.value)} />
+        <CodeEditor value={encodeInput} onChange={setEncodeInput} minHeight={70} />
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button className="btn" onClick={() => setEncodeInput(encodeURIComponent(encodeInput))}>
             エンコード
@@ -141,7 +141,7 @@ export function TextCountTool() {
 
   return (
     <div className="panel-card" style={{ padding: 14 }}>
-      <textarea style={{ ...textareaStyle, minHeight: 200 }} value={text} onChange={(e) => setText(e.target.value)} placeholder="テキストを入力…" />
+      <CodeEditor value={text} onChange={setText} minHeight={200} placeholder="テキストを入力…" />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginTop: 12 }}>
         {stats.map(([label, value]) => (
           <div key={label} className="panel-card" style={{ padding: "8px 12px" }}>
@@ -153,5 +153,4 @@ export function TextCountTool() {
     </div>
   );
 }
-
 

@@ -1,6 +1,6 @@
 // §6.11 開発者ツールボックス。各ツールは機能カテゴリ別モジュールに分割し、
 // このページはナビゲーションと選択状態だけを担当する。
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { JsonTool, YamlTool, XmlTool, TextTool } from "./devtools/format";
 import { UuidTool } from "./devtools/identity";
 import { TimestampTool, RegexTool, DiffTool } from "./devtools/analysis";
@@ -11,10 +11,13 @@ import { PasswordTool, UnitTool } from "./devtools/conversion";
 import { PortTestTool, QrCodeTool, BackgroundRemovalTool } from "./devtools/system";
 import "./pages.css";
 
+const SqlTool = lazy(() => import("./devtools/sql").then((module) => ({ default: module.SqlTool })));
+
 type ToolTab =
   | "json"
   | "yaml"
   | "xml"
+  | "sql"
   | "text"
   | "uuid"
   | "timestamp"
@@ -54,6 +57,9 @@ export default function DevToolsPage() {
           </button>
           <button className={tab === "xml" ? "active" : ""} onClick={() => setTab("xml")}>
             XML整形
+          </button>
+          <button className={tab === "sql" ? "active" : ""} onClick={() => setTab("sql")}>
+            SQL整形
           </button>
           <button className={tab === "text" ? "active" : ""} onClick={() => setTab("text")}>
             テキスト変換
@@ -111,6 +117,11 @@ export default function DevToolsPage() {
           {tab === "json" && <JsonTool />}
           {tab === "yaml" && <YamlTool />}
           {tab === "xml" && <XmlTool />}
+          {tab === "sql" && (
+            <Suspense fallback={<div className="panel-card" style={{ padding: 14 }}>SQLエディタを読み込んでいます…</div>}>
+              <SqlTool />
+            </Suspense>
+          )}
           {tab === "text" && <TextTool />}
           {tab === "uuid" && <UuidTool />}
           {tab === "timestamp" && <TimestampTool />}

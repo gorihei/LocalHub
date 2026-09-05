@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CopyButton, textareaStyle } from "./shared";
+import { CodeEditor, CopyButton } from "./shared";
 
 const FAKE_FAMILY = ["佐藤", "鈴木", "高橋", "田中", "渡辺", "伊藤", "山本", "中村", "小林", "加藤"];
 const FAKE_GIVEN = ["翔太", "陽菜", "大輝", "美咲", "健太", "花子", "拓也", "さくら", "蓮", "結衣"];
@@ -64,7 +64,7 @@ export function FakeDataTool() {
           生成
         </button>
       </div>
-      <textarea style={textareaStyle} value={output} readOnly />
+      <CodeEditor language="json" value={output} readOnly />
       <div style={{ marginTop: 8, marginBottom: 18 }}>
         <CopyButton text={output} />
       </div>
@@ -78,7 +78,7 @@ export function FakeDataTool() {
           8文
         </button>
       </div>
-      <textarea style={{ ...textareaStyle, minHeight: 100 }} value={lorem} readOnly />
+      <CodeEditor value={lorem} minHeight={100} readOnly />
       <div style={{ marginTop: 8 }}>
         <CopyButton text={lorem} />
       </div>
@@ -184,7 +184,7 @@ export function MarkdownTool() {
         簡易Markdownプレビュー(見出し/太字/斜体/リンク/リスト/引用/コードブロックに対応)
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <textarea style={{ ...textareaStyle, minHeight: 260 }} value={src} onChange={(e) => setSrc(e.target.value)} />
+        <CodeEditor language="markdown" value={src} onChange={setSrc} minHeight={260} />
         <div
           className="panel-card"
           style={{ padding: 12, minHeight: 260, overflow: "auto", fontSize: 13, lineHeight: 1.6 }}
@@ -194,5 +194,4 @@ export function MarkdownTool() {
     </div>
   );
 }
-
 

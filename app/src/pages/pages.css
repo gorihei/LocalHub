@@ -501,6 +501,22 @@ table.plugin-table tr:last-child td {
   padding-right: 4px;
 }
 
+.code-editor {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  font-size: 12px;
+}
+
+.code-editor:focus-within {
+  border-color: var(--accent);
+}
+
+.code-editor .cm-editor,
+.code-editor .cm-gutters {
+  background: var(--surface);
+}
+
 .setting-row {
   display: flex;
   align-items: center;

@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { textareaStyle } from "./shared";
+import { CodeEditor } from "./shared";
 
 type PortTestResult = {
   host: string;
@@ -141,10 +141,10 @@ export function QrCodeTool() {
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>テキストまたはURL</label>
-      <textarea
-        style={{ ...textareaStyle, minHeight: 110 }}
+      <CodeEditor
+        minHeight={110}
         value={input}
-        onChange={(event) => setInput(event.target.value)}
+        onChange={setInput}
         placeholder="https://example.com"
       />
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "10px 0 14px" }}>
@@ -341,5 +341,4 @@ export function BackgroundRemovalTool() {
     </div>
   );
 }
-
 

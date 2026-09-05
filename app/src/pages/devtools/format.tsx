@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as yaml from "js-yaml";
-import { CopyButton, textareaStyle, type JsonValue } from "./shared";
+import { CodeEditor, CopyButton, textareaStyle, type JsonValue } from "./shared";
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
@@ -69,7 +69,7 @@ export function JsonTool() {
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>入力</label>
-      <textarea style={textareaStyle} value={input} onChange={(e) => setInput(e.target.value)} placeholder='{"example": true}' />
+      <CodeEditor language="json" value={input} onChange={setInput} placeholder='{"example": true}' />
       <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
         <button className="btn" onClick={() => run("format")}>
           整形
@@ -89,7 +89,7 @@ export function JsonTool() {
       {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>結果</label>
       {view === "text" ? (
-        <textarea style={textareaStyle} value={output} readOnly />
+        <CodeEditor language="json" value={output} readOnly />
       ) : (
         <div style={{ ...textareaStyle, overflow: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-s)", padding: 8 }}>
           {parsed === null ? <span style={{ color: "var(--text-faint)", fontSize: 12 }}>整形を実行してください</span> : <JsonTreeNode label={null} value={parsed} depth={0} />}
@@ -135,7 +135,7 @@ export function YamlTool() {
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>入力(YAMLまたはJSON)</label>
-      <textarea style={textareaStyle} value={input} onChange={(e) => setInput(e.target.value)} placeholder={"key: value\nlist:\n  - a\n  - b"} />
+      <CodeEditor language="yaml" value={input} onChange={setInput} placeholder={"key: value\nlist:\n  - a\n  - b"} />
       <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
         <button className="btn" onClick={yamlToJson}>
           YAML→JSON
@@ -149,7 +149,7 @@ export function YamlTool() {
       </div>
       {error && <div style={{ color: error === "有効なYAMLです" ? "var(--success)" : "var(--danger)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>結果</label>
-      <textarea style={textareaStyle} value={output} readOnly />
+      <CodeEditor language={output.trimStart().startsWith("{") || output.trimStart().startsWith("[") ? "json" : "yaml"} value={output} readOnly />
       <div style={{ marginTop: 8 }}>
         <CopyButton text={output} />
       </div>
@@ -195,7 +195,7 @@ export function XmlTool() {
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>入力</label>
-      <textarea style={textareaStyle} value={input} onChange={(e) => setInput(e.target.value)} placeholder="<root><item>value</item></root>" />
+      <CodeEditor language="xml" value={input} onChange={setInput} placeholder="<root><item>value</item></root>" />
       <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
         <button className="btn" onClick={format}>
           整形・検証
@@ -203,7 +203,7 @@ export function XmlTool() {
       </div>
       {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10, whiteSpace: "pre-wrap" }}>{error}</div>}
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>結果</label>
-      <textarea style={textareaStyle} value={output} readOnly />
+      <CodeEditor language="xml" value={output} readOnly />
       <div style={{ marginTop: 8 }}>
         <CopyButton text={output} />
       </div>
@@ -228,7 +228,7 @@ export function TextTool() {
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>入力</label>
-      <textarea style={{ ...textareaStyle, minHeight: 100 }} value={input} onChange={(e) => setInput(e.target.value)} />
+      <CodeEditor value={input} onChange={setInput} minHeight={100} />
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0" }}>
         <button className="btn" onClick={() => run((s) => btoa(unescape(encodeURIComponent(s))))}>
           Base64エンコード
@@ -266,12 +266,11 @@ export function TextTool() {
       </div>
       {error && <div style={{ color: "var(--danger)", fontSize: 12, marginBottom: 10 }}>{error}</div>}
       <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>結果</label>
-      <textarea style={{ ...textareaStyle, minHeight: 100 }} value={output} readOnly />
+      <CodeEditor value={output} minHeight={100} readOnly />
       <div style={{ marginTop: 8 }}>
         <CopyButton text={output} />
       </div>
     </div>
   );
 }
-
 
