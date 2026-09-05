@@ -37,15 +37,15 @@ export default function DevToolsPage() {
   const [tab, setTab] = useState<ToolTab>("json");
 
   return (
-    <div className="page">
+    <div className="page devtools-page">
       <div className="page-head">
         <div>
           <h1>開発者ツールボックス</h1>
           <p>すべてローカルで処理し、入力内容を外部へ送信しません</p>
         </div>
       </div>
-      <div className="settings-layout">
-        <div className="settings-nav">
+      <div className="settings-layout devtools-layout">
+        <div className="settings-nav devtools-nav">
           <button className={tab === "json" ? "active" : ""} onClick={() => setTab("json")}>
             JSON整形
           </button>
@@ -107,26 +107,28 @@ export default function DevToolsPage() {
             画像背景透過
           </button>
         </div>
-        {tab === "json" && <JsonTool />}
-        {tab === "yaml" && <YamlTool />}
-        {tab === "xml" && <XmlTool />}
-        {tab === "text" && <TextTool />}
-        {tab === "uuid" && <UuidTool />}
-        {tab === "timestamp" && <TimestampTool />}
-        {tab === "regex" && <RegexTool />}
-        {tab === "diff" && <DiffTool />}
-        {tab === "color" && <ColorTool />}
-        {tab === "jwt" && <JwtTool />}
-        {tab === "fake" && <FakeDataTool />}
-        {tab === "markdown" && <MarkdownTool />}
-        {tab === "number" && <NumberBaseTool />}
-        {tab === "url" && <UrlTool />}
-        {tab === "count" && <TextCountTool />}
-        {tab === "password" && <PasswordTool />}
-        {tab === "unit" && <UnitTool />}
-        {tab === "port" && <PortTestTool />}
-        {tab === "qr" && <QrCodeTool />}
-        {tab === "background" && <BackgroundRemovalTool />}
+        <div className="devtools-content">
+          {tab === "json" && <JsonTool />}
+          {tab === "yaml" && <YamlTool />}
+          {tab === "xml" && <XmlTool />}
+          {tab === "text" && <TextTool />}
+          {tab === "uuid" && <UuidTool />}
+          {tab === "timestamp" && <TimestampTool />}
+          {tab === "regex" && <RegexTool />}
+          {tab === "diff" && <DiffTool />}
+          {tab === "color" && <ColorTool />}
+          {tab === "jwt" && <JwtTool />}
+          {tab === "fake" && <FakeDataTool />}
+          {tab === "markdown" && <MarkdownTool />}
+          {tab === "number" && <NumberBaseTool />}
+          {tab === "url" && <UrlTool />}
+          {tab === "count" && <TextCountTool />}
+          {tab === "password" && <PasswordTool />}
+          {tab === "unit" && <UnitTool />}
+          {tab === "port" && <PortTestTool />}
+          {tab === "qr" && <QrCodeTool />}
+          {tab === "background" && <BackgroundRemovalTool />}
+        </div>
       </div>
     </div>
   );

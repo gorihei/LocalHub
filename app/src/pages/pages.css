@@ -470,6 +470,37 @@ table.plugin-table tr:last-child td {
   font-weight: 600;
 }
 
+/* ツール数が増えてもページ全体を押し下げず、メニューとツール本体を
+   それぞれ利用可能な高さの中でスクロールさせる。 */
+.devtools-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.devtools-layout {
+  flex: 1;
+  min-height: 0;
+}
+
+.devtools-nav,
+.devtools-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.devtools-nav {
+  padding-right: 4px;
+}
+
+.devtools-content {
+  min-width: 0;
+  padding-right: 4px;
+}
+
 .setting-row {
   display: flex;
   align-items: center;

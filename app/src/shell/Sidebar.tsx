@@ -24,15 +24,6 @@ const NAV_ITEMS: { id: PageId; label: string; soon?: boolean; icon: ReactElement
     ),
   },
   {
-    id: "automation",
-    label: "自動化",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M11 3 5 12h4l-1 5 7-9h-4z" />
-      </svg>
-    ),
-  },
-  {
     id: "plugins",
     label: "プラグイン",
     icon: (
