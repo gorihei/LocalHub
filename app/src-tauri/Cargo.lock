@@ -76,6 +76,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "windows-native-keyring-store",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

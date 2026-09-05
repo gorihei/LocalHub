@@ -3,9 +3,11 @@ mod command_bus;
 mod jobs;
 mod logging;
 mod manifest;
+mod mouse_effects;
 mod notifications;
 mod permissions;
 mod plugin_host;
+mod port_test;
 mod processes;
 mod pty;
 mod shortcuts;
@@ -199,6 +201,7 @@ pub fn run() {
         .manage(system::SystemState::default())
         .manage(processes::ProcessState::default())
         .manage(GlobalShortcutState::default())
+        .manage(mouse_effects::MouseEffectsState::default())
         .manage(automation::SchedulerState::default())
         .invoke_handler(tauri::generate_handler![
             greet,
@@ -206,6 +209,9 @@ pub fn run() {
             notify_diagnostic,
             global_shortcut_status,
             global_shortcut_update,
+            mouse_effects::mouse_effects_status,
+            mouse_effects::mouse_effects_update,
+            port_test::tcp_port_test,
             log_dir_path,
             pty::pty_spawn,
             pty::ai_cli_detect,
@@ -290,6 +296,9 @@ pub fn run() {
             app.manage(plugin_host::SafeModeState(safe_mode));
 
             app.manage(db_state);
+
+            // 設定画面で有効にしたクリック波紋は、次回起動時も自動的に監視を開始する。
+            mouse_effects::restore_saved_setting(&app.handle());
 
             // FR-PLUG-001: 起動時にプラグインを検出する(複数対応)。
             let plugins_dir = app.path().app_data_dir()?.join("plugins");

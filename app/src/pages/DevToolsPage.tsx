@@ -6,6 +6,7 @@
 import { useEffect, useState, type CSSProperties, type ChangeEvent, type DragEvent } from "react";
 import * as yaml from "js-yaml";
 import QRCode from "qrcode";
+import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import "./pages.css";
@@ -29,6 +30,7 @@ type ToolTab =
   | "password"
   | "unit"
   | "qr"
+  | "port"
   | "background";
 
 function CopyButton({ text }: { text: string }) {
@@ -454,45 +456,33 @@ function RegexTool() {
   const [pattern, setPattern] = useState("");
   const [flags, setFlags] = useState("g");
   const [text, setText] = useState("");
-  const [error, setError] = useState("");
+  const [replacement, setReplacement] = useState("");
 
   let matches: RegExpMatchArray[] = [];
+  let error = "";
+  let replacementPreview = text;
   try {
     if (pattern) {
-      matches = [...text.matchAll(new RegExp(pattern, flags.includes("g") ? flags : flags + "g"))];
+      const matchFlags = flags.includes("g") ? flags : flags + "g";
+      matches = [...text.matchAll(new RegExp(pattern, matchFlags))];
+      replacementPreview = text.replace(new RegExp(pattern, flags), replacement);
     }
-    if (error) setError("");
-  } catch {
-    // レンダー中のsetStateを避けるため、下のuseEffect代わりに即時反映のみ行う
+  } catch (cause) {
+    error = String(cause);
   }
-
-  const validate = () => {
-    try {
-      new RegExp(pattern, flags);
-      setError("");
-    } catch (err) {
-      setError(String(err));
-    }
-  };
 
   return (
     <div className="panel-card" style={{ padding: 14 }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <input
           value={pattern}
-          onChange={(e) => {
-            setPattern(e.target.value);
-            validate();
-          }}
+          onChange={(e) => setPattern(e.target.value)}
           placeholder="正規表現(例: \\d+)"
           style={{ flex: 1, fontFamily: "var(--font-mono)" }}
         />
         <input
           value={flags}
-          onChange={(e) => {
-            setFlags(e.target.value);
-            validate();
-          }}
+          onChange={(e) => setFlags(e.target.value)}
           placeholder="フラグ(例: gi)"
           style={{ width: 90, fontFamily: "var(--font-mono)" }}
         />
@@ -504,12 +494,27 @@ function RegexTool() {
       {matches.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, maxHeight: 160, overflowY: "auto" }}>
           {matches.map((m, i) => (
-            <code key={i} style={{ fontSize: 11.5, background: "var(--surface-raised)", padding: "3px 6px", borderRadius: 4 }}>
-              [{m.index}] {m[0]}
-            </code>
+            <div key={`${m.index}-${i}`} style={{ background: "var(--surface-raised)", padding: "5px 7px", borderRadius: 4 }}>
+              <code style={{ display: "block", fontSize: 11.5 }}>[{m.index}] {m[0]}</code>
+              {m.slice(1).map((capture, captureIndex) => (
+                <code key={captureIndex} style={{ display: "block", marginTop: 3, color: "var(--text-muted)", fontSize: 11 }}>
+                  ${captureIndex + 1}: {capture === undefined ? "（未一致）" : capture}
+                </code>
+              ))}
+              {m.groups && Object.entries(m.groups).map(([name, capture]) => (
+                <code key={name} style={{ display: "block", marginTop: 3, color: "var(--accent)", fontSize: 11 }}>
+                  {name}: {capture === undefined ? "（未一致）" : capture}
+                </code>
+              ))}
+            </div>
           ))}
         </div>
       )}
+      <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", margin: "14px 0 4px" }}>置換文字列（$1、$&amp;、名前付きグループを使用可能）</label>
+      <input value={replacement} onChange={(e) => setReplacement(e.target.value)} style={{ width: "100%", fontFamily: "var(--font-mono)" }} />
+      <label style={{ display: "block", fontSize: 11.5, color: "var(--text-faint)", margin: "10px 0 4px" }}>置換プレビュー</label>
+      <textarea style={{ ...textareaStyle, minHeight: 120 }} value={error ? "" : replacementPreview} readOnly />
+      <div style={{ marginTop: 8 }}><CopyButton text={error ? "" : replacementPreview} /></div>
     </div>
   );
 }
@@ -1329,6 +1334,88 @@ function UnitTool() {
   );
 }
 
+type PortTestResult = {
+  host: string;
+  port: number;
+  reachable: boolean;
+  latencyMs: number | null;
+  remoteAddress: string | null;
+  error: string | null;
+};
+
+function PortTestTool() {
+  const [host, setHost] = useState("localhost");
+  const [port, setPort] = useState("443");
+  const [timeoutMs, setTimeoutMs] = useState("2000");
+  const [result, setResult] = useState<PortTestResult | null>(null);
+  const [error, setError] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  const run = async () => {
+    const numericPort = Number(port);
+    const numericTimeout = Number(timeoutMs);
+    if (!Number.isInteger(numericPort) || numericPort < 1 || numericPort > 65535) {
+      setError("ポート番号は1〜65535で入力してください");
+      return;
+    }
+    setTesting(true);
+    setResult(null);
+    setError("");
+    try {
+      setResult(await invoke<PortTestResult>("tcp_port_test", { host, port: numericPort, timeoutMs: numericTimeout }));
+    } catch (cause) {
+      setError(String(cause));
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="panel-card" style={{ padding: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) 120px 140px auto", gap: 8, alignItems: "end" }}>
+        <label style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+          ホスト名またはIPアドレス
+          <input value={host} onChange={(event) => setHost(event.target.value)} onKeyDown={(event) => event.key === "Enter" && run()} placeholder="example.com" style={{ width: "100%", marginTop: 4 }} />
+        </label>
+        <label style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+          ポート
+          <input type="number" min={1} max={65535} value={port} onChange={(event) => setPort(event.target.value)} style={{ width: "100%", marginTop: 4 }} />
+        </label>
+        <label style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
+          タイムアウト
+          <select value={timeoutMs} onChange={(event) => setTimeoutMs(event.target.value)} style={{ width: "100%", marginTop: 4 }}>
+            <option value="500">500ms</option>
+            <option value="1000">1秒</option>
+            <option value="2000">2秒</option>
+            <option value="5000">5秒</option>
+            <option value="10000">10秒</option>
+          </select>
+        </label>
+        <button className="btn primary" onClick={run} disabled={testing || !host.trim()}>{testing ? "確認中…" : "疎通確認"}</button>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+        {[80, 443, 3000, 5432, 6379, 8080].map((commonPort) => (
+          <button key={commonPort} className="btn" onClick={() => setPort(String(commonPort))}>{commonPort}</button>
+        ))}
+      </div>
+      {error && <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 14 }}>{error}</div>}
+      {result && (
+        <div className="panel-card" style={{ padding: 14, marginTop: 14, borderColor: result.reachable ? "var(--success)" : "var(--danger)" }}>
+          <div style={{ color: result.reachable ? "var(--success)" : "var(--danger)", fontWeight: 700 }}>
+            {result.reachable ? "接続成功" : "接続できません"}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7 }}>
+            対象: {result.host}:{result.port}<br />
+            接続先: {result.remoteAddress ?? "-"}<br />
+            応答時間: {result.latencyMs === null ? "-" : `${result.latencyMs}ms`}
+            {result.error && <><br />詳細: {result.error}</>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type QrErrorCorrectionLevel = "L" | "M" | "Q" | "H";
 
 function QrCodeTool() {
@@ -1648,6 +1735,9 @@ export default function DevToolsPage() {
           <button className={tab === "unit" ? "active" : ""} onClick={() => setTab("unit")}>
             単位変換
           </button>
+          <button className={tab === "port" ? "active" : ""} onClick={() => setTab("port")}>
+            ポート疎通
+          </button>
           <button className={tab === "qr" ? "active" : ""} onClick={() => setTab("qr")}>
             QRコード生成
           </button>
@@ -1672,6 +1762,7 @@ export default function DevToolsPage() {
         {tab === "count" && <TextCountTool />}
         {tab === "password" && <PasswordTool />}
         {tab === "unit" && <UnitTool />}
+        {tab === "port" && <PortTestTool />}
         {tab === "qr" && <QrCodeTool />}
         {tab === "background" && <BackgroundRemovalTool />}
       </div>
