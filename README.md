@@ -79,6 +79,7 @@ cargo check --manifest-path plugins/todo-plugin/Cargo.toml
 ## ドキュメント
 
 - [現状アーキテクチャ](docs/ARCHITECTURE.md)
+- [Windows版リリース手順](docs/RELEASING.md)
 - [技術スタックの選定](docs/adr/0001-tech-stack.md)
 - [Phase 0 技術検証](docs/adr/0002-phase0-technical-validation.md)
 - [プラグイン WebView アーキテクチャ](docs/adr/0003-plugin-webview-architecture.md)

@@ -41,6 +41,7 @@ docs/
   ARCHITECTURE.md       このファイル
   SPECIFICATIONS.md     利用者から見える動作と実装契約
   CHANGELOG.md          日付単位の実装修正履歴
+  RELEASING.md          Windowsインストーラーの公開手順
 REQUIREMENTS.md         要件定義(正)
 ```
 
@@ -151,6 +152,13 @@ REQUIREMENTS.md         要件定義(正)
 
 `src-tauri/Cargo.toml`の`[[bin]] name = "LocalHub"`により、生成物は`LocalHub.exe`
 (タスクマネージャー等での識別性のため、パッケージ/クレート名`app`自体は変更していない)。
+
+## リリース
+
+`.github/workflows/release-windows.yml`が`v*`タグのpushを検知し、GitHub-hosted Windows
+runnerでNSISとMSIのインストーラーをビルドする。タグと`tauri.conf.json`、
+`Cargo.toml`、`package.json`のバージョンが一致する場合だけ、GitHub Releaseを作成して
+成果物を添付する。詳細は[RELEASING.md](RELEASING.md)を参照。
 
 ## 既知の制限・今後の課題
 
