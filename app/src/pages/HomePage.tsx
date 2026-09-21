@@ -33,6 +33,8 @@ export default function HomePage() {
   const [focusedId, setFocusedId] = useState<WidgetId | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [tabDropTarget, setTabDropTarget] = useState<{ id: string; after: boolean } | null>(null);
 
   const [launcherEditing, setLauncherEditing] = useState(isLauncherEditing);
   useEffect(() => onLauncherEditingChanged(setLauncherEditing), []);
@@ -154,6 +156,29 @@ export default function HomePage() {
     persistTabs(next);
   };
 
+  const reorderTab = (sourceId: string, targetId: string, after: boolean) => {
+    if (sourceId === targetId) return;
+    const source = tabs.find((tab) => tab.id === sourceId);
+    if (!source) return;
+    const remaining = tabs.filter((tab) => tab.id !== sourceId);
+    const targetIndex = remaining.findIndex((tab) => tab.id === targetId);
+    if (targetIndex < 0) return;
+    remaining.splice(targetIndex + (after ? 1 : 0), 0, source);
+    setTabs(remaining);
+    persistTabs(remaining);
+  };
+
+  const moveActiveTab = (offset: -1 | 1) => {
+    if (!activeTab) return;
+    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.id);
+    const targetIndex = currentIndex + offset;
+    if (targetIndex < 0 || targetIndex >= tabs.length) return;
+    const next = [...tabs];
+    [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+    setTabs(next);
+    persistTabs(next);
+  };
+
   const addWidget = (id: WidgetId) => {
     // y: Infinityでreact-grid-layoutに自動配置させたかったが、その解決結果を
     // 拾うためだけに付けていたonLayoutChange={setLayout}が、削除直後の
@@ -269,10 +294,38 @@ export default function HomePage() {
               type="button"
               role="tab"
               aria-selected={tab.id === activeTabId}
-              className={`dashboard-tab${tab.id === activeTabId ? " active" : ""}`}
+              draggable={editing && tabs.length > 1}
+              className={`dashboard-tab${tab.id === activeTabId ? " active" : ""}${draggedTabId === tab.id ? " dragging" : ""}${tabDropTarget?.id === tab.id ? (tabDropTarget.after ? " drop-after" : " drop-before") : ""}`}
+              title={editing && tabs.length > 1 ? "ドラッグしてタブを並べ替え" : undefined}
               onClick={() => {
                 setActiveTabId(tab.id);
                 setFocusedId(null);
+              }}
+              onDragStart={(event) => {
+                if (!editing) return;
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", tab.id);
+                setDraggedTabId(tab.id);
+              }}
+              onDragOver={(event) => {
+                if (!draggedTabId || draggedTabId === tab.id) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                const bounds = event.currentTarget.getBoundingClientRect();
+                setTabDropTarget({ id: tab.id, after: event.clientX >= bounds.left + bounds.width / 2 });
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggedTabId && draggedTabId !== tab.id) {
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  reorderTab(draggedTabId, tab.id, event.clientX >= bounds.left + bounds.width / 2);
+                }
+                setDraggedTabId(null);
+                setTabDropTarget(null);
+              }}
+              onDragEnd={() => {
+                setDraggedTabId(null);
+                setTabDropTarget(null);
               }}
             >
               <span>{tab.name}</span>
@@ -287,6 +340,26 @@ export default function HomePage() {
         </div>
         {editing && activeTab && (
           <div className="dashboard-tab-editing">
+            <button
+              className="btn dashboard-tab-move"
+              type="button"
+              title="現在のタブを左へ移動"
+              aria-label="現在のタブを左へ移動"
+              disabled={tabs.findIndex((tab) => tab.id === activeTab.id) <= 0}
+              onClick={() => moveActiveTab(-1)}
+            >
+              ←
+            </button>
+            <button
+              className="btn dashboard-tab-move"
+              type="button"
+              title="現在のタブを右へ移動"
+              aria-label="現在のタブを右へ移動"
+              disabled={tabs.findIndex((tab) => tab.id === activeTab.id) >= tabs.length - 1}
+              onClick={() => moveActiveTab(1)}
+            >
+              →
+            </button>
             <input
               className="dashboard-tab-name"
               value={activeTab.name}

@@ -80,6 +80,26 @@ body.density-compact .page-head {
   border-bottom-color: var(--accent);
 }
 
+.dashboard-tab[draggable="true"] {
+  cursor: grab;
+}
+
+.dashboard-tab[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.dashboard-tab.dragging {
+  opacity: 0.45;
+}
+
+.dashboard-tab.drop-before {
+  box-shadow: inset 2px 0 var(--accent);
+}
+
+.dashboard-tab.drop-after {
+  box-shadow: inset -2px 0 var(--accent);
+}
+
 .dashboard-tab small {
   min-width: 18px;
   padding: 1px 5px;
@@ -120,6 +140,12 @@ body.density-compact .page-head {
 .dashboard-tab-name:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+.dashboard-tab-move {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
 }
 
 .widget-tab-select {
