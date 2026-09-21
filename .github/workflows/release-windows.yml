@@ -36,33 +36,27 @@ jobs:
         shell: pwsh
         run: |
           $tagVersion = "${{ github.ref_name }}".TrimStart("v")
-          $tauriVersion = (Get-Content app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $packageVersion = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
-          $cargoVersion = (
-            Select-String -Path app/src-tauri/Cargo.toml -Pattern '^version = "([^"]+)"' |
-              Select-Object -First 1
-          ).Matches.Groups[1].Value
-
-          $versions = @{
-            tag = $tagVersion
-            tauri = $tauriVersion
-            package = $packageVersion
-            cargo = $cargoVersion
-          }
-          $versions.GetEnumerator() | Sort-Object Name | Format-Table -AutoSize
-
-          if ($versions.Values | Where-Object { $_ -ne $tagVersion }) {
-            throw "タグとtauri.conf.json、package.json、Cargo.tomlのバージョンが一致していません。"
-          }
+          Set-Location app
+          npm run version:check -- $tagVersion
 
       - name: Install frontend dependencies
         working-directory: app
         run: npm ci
 
+      - name: Verify updater signing key
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "GitHub Actions secret TAURI_SIGNING_PRIVATE_KEY が設定されていません。"
+          }
+
       - name: Build installers and create GitHub Release
         uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: app
           tagName: ${{ github.ref_name }}
@@ -71,4 +65,3 @@ jobs:
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: --bundles nsis,msi
-

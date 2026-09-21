@@ -13,14 +13,27 @@ Local HubのWindowsインストーラーは、GitHub ActionsでビルドしGitHu
 
 ## リリース前の更新
 
-次の3ファイルのバージョンを同じ値へ更新する。
+次のコマンドでアプリとロックファイルのバージョンを一括更新する。
 
-- `app/src-tauri/tauri.conf.json`の`version`
-- `app/src-tauri/Cargo.toml`の`package.version`
-- `app/package.json`の`version`
+```powershell
+Set-Location app
+npm run version:set -- 0.2.0
+```
 
-`app/package.json`を変更した場合は、`app/package-lock.json`も同期する。変更履歴を
-`docs/CHANGELOG.md`へ記載し、以下を実行する。
+このコマンドは`tauri.conf.json`、`Cargo.toml`、`Cargo.lock`、`package.json`、
+`package-lock.json`を同期する。個別に編集しない。変更履歴を`docs/CHANGELOG.md`へ記載し、
+以下を実行する。
+
+### Updater署名鍵
+
+Tauri Updaterの秘密鍵はリポジトリへ保存せず、GitHub ActionsのRepository secret
+`TAURI_SIGNING_PRIVATE_KEY`へ秘密鍵ファイルの内容を登録する。公開鍵だけを
+`app/src-tauri/tauri.conf.json`へ保存する。
+
+開発環境で生成した秘密鍵は`%USERPROFILE%\.tauri\local-hub-updater.key`にある。
+紛失すると既存インストールへ新しい更新を配信できなくなるため、安全な場所へ別途
+バックアップする。秘密鍵を変更する場合は、旧バージョンから新しい鍵へ移行できる
+リリース手順を先に設計し、単純に公開鍵を置き換えない。
 
 ```powershell
 Set-Location app
@@ -42,9 +55,9 @@ git push origin v0.2.0
 ```
 
 GitHubのActions画面で`Release Windows installer`が成功すると、Releasesページに
-インストーラーと自動生成されたリリースノートが公開される。
+インストーラー、Updater用署名、`latest.json`と自動生成されたリリースノートが公開される。
 
-ワークフローはタグのバージョンと上記3ファイルを照合する。不一致の場合はビルド前に
+ワークフローはタグのバージョンと全バージョン記載箇所を照合する。不一致の場合はビルド前に
 失敗するため、ファイルを修正して新しいタグを作り直す。
 
 ## 配布上の注意

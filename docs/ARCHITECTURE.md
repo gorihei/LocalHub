@@ -95,7 +95,8 @@ REQUIREMENTS.md         要件定義(正)
 7. **設定** — `SettingsPage.tsx`がカテゴリ切り替えを担当し、`settings/`配下のパネルへ
    設定項目と状態管理を分離する。外観(アクセントカラー6色・フォントサイズ・密度)、
    一般(自動起動・閉じる動作)、ショートカット(グローバルホットキー)、
-   マウス(Windows全体のクリック波紋)、データ(バックアップ書き出し/読み込み)、ログ。
+   マウス(Windows全体のクリック波紋)、データ(バックアップ書き出し/読み込み)、
+   アップデート(確認・署名検証・適用)、ログ。
    クリック波紋の有効状態・色・形・速度・サイズ・線幅はSQLiteへ保存し、次回起動時に
    自動復元する。
 
@@ -158,7 +159,9 @@ REQUIREMENTS.md         要件定義(正)
 `.github/workflows/release-windows.yml`が`v*`タグのpushを検知し、GitHub-hosted Windows
 runnerでNSISとMSIのインストーラーをビルドする。タグと`tauri.conf.json`、
 `Cargo.toml`、`package.json`のバージョンが一致する場合だけ、GitHub Releaseを作成して
-成果物を添付する。詳細は[RELEASING.md](RELEASING.md)を参照。
+成果物を添付する。更新用成果物はTauri Updaterの秘密鍵で署名し、`latest.json`と署名を
+同じReleaseへ添付する。アプリは埋め込まれた公開鍵で検証してから更新を適用する。
+詳細は[RELEASING.md](RELEASING.md)を参照。
 
 ## 既知の制限・今後の課題
 

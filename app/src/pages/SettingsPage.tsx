@@ -9,8 +9,9 @@ import GeneralPanel from "./settings/GeneralPanel";
 import MousePanel from "./settings/MousePanel";
 import ShortcutsPanel from "./settings/ShortcutsPanel";
 import LogsPanel from "./settings/LogsPanel";
+import UpdatePanel from "./settings/UpdatePanel";
 
-type SettingsTab = "appearance" | "general" | "shortcuts" | "mouse" | "data" | "logs";
+type SettingsTab = "appearance" | "general" | "shortcuts" | "mouse" | "data" | "updates" | "logs";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>("appearance");
@@ -52,6 +53,9 @@ export default function SettingsPage() {
           <button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>
             データ
           </button>
+          <button className={tab === "updates" ? "active" : ""} onClick={() => setTab("updates")}>
+            アップデート
+          </button>
           <button className={tab === "logs" ? "active" : ""} onClick={() => setTab("logs")}>
             ログ
           </button>
@@ -60,6 +64,7 @@ export default function SettingsPage() {
         {tab === "general" && <GeneralPanel />}
         {tab === "shortcuts" && <ShortcutsPanel />}
         {tab === "mouse" && <MousePanel />}
+        {tab === "updates" && <UpdatePanel />}
         {tab === "logs" && <LogsPanel />}
         {tab === "appearance" && (
           <div className="panel-card" style={{ padding: "4px 18px" }}>
