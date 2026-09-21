@@ -13,8 +13,23 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
+
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// GUIプロセスから検出用の短命なコマンドを起動しても、Windowsのコンソールを
+/// 一瞬表示しないようにする。ConPTYで起動する対話セッションには適用しない。
+#[cfg(windows)]
+fn hide_console_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_console_window(_command: &mut Command) {}
 
 #[derive(Serialize)]
 pub struct AiCliInfo {
@@ -27,10 +42,10 @@ pub struct AiCliInfo {
 }
 
 fn find_on_path(command: &str) -> Option<PathBuf> {
-    let output = std::process::Command::new("where.exe")
-        .arg(command)
-        .output()
-        .ok()?;
+    let mut lookup = Command::new("where.exe");
+    lookup.arg(command);
+    hide_console_window(&mut lookup);
+    let output = lookup.output().ok()?;
     output.status.success().then_some(())?;
     let paths: Vec<PathBuf> = String::from_utf8_lossy(&output.stdout)
         .lines()
@@ -55,17 +70,19 @@ fn find_on_path(command: &str) -> Option<PathBuf> {
         .find(|path| read_cli_version(path).is_some())
 }
 
-fn process_for_path(path: &Path) -> std::process::Command {
-    if matches!(
+fn process_for_path(path: &Path) -> Command {
+    let mut command = if matches!(
         path.extension().and_then(OsStr::to_str),
         Some("cmd" | "bat")
     ) {
-        let mut command = std::process::Command::new("cmd.exe");
+        let mut command = Command::new("cmd.exe");
         command.arg("/d").arg("/c").arg(path);
         command
     } else {
-        std::process::Command::new(path)
-    }
+        Command::new(path)
+    };
+    hide_console_window(&mut command);
+    command
 }
 
 fn read_cli_version(path: &Path) -> Option<String> {
@@ -205,7 +222,10 @@ fn find_git_bash() -> Option<PathBuf> {
     }
     // `where git`でgit.exeの場所を調べ、そこから ..\bin\bash.exe を推測する
     // (git.exeは通常 <Gitルート>\cmd\git.exe または \bin\git.exe にある)。
-    let output = std::process::Command::new("where").arg("git").output().ok()?;
+    let mut lookup = Command::new("where.exe");
+    lookup.arg("git");
+    hide_console_window(&mut lookup);
+    let output = lookup.output().ok()?;
     let first_line = String::from_utf8_lossy(&output.stdout).lines().next()?.trim().to_string();
     let git_exe = PathBuf::from(first_line);
     let git_root = git_exe.parent()?.parent()?;
